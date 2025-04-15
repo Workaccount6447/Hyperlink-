@@ -7,8 +7,8 @@ from PIL import Image
 import re  # For finding links in text
 
 # --- 1. Bot Token and Owner ID ---
-BOT_TOKEN = "YOUR_BOT_TOKEN"  # Replace with your actual bot token
-OWNER_ID = YOUR_TELEGRAM_ID  # Replace with your Telegram user ID (as an integer)
+BOT_TOKEN = "7864703583:AAGqZInSK2tp8Jykwpte7Ng0iunmYLlRwms"  # Replace with your actual bot token
+OWNER_ID = 7588665244  # Replace with your Telegram user ID (as an integer)
 
 # --- 2. Authorized Users (Initially Empty) ---
 authorized_users = set()
@@ -18,7 +18,7 @@ SUPPORT_BOT_USERNAME = "@supportbot"
 
 # --- 4. Payment Information ---
 PAYMENT_AMOUNT = 100
-PAYMENT_INSTRUCTIONS = "consult to the owner and send proof to [Your preferred contact method]"
+PAYMENT_INSTRUCTIONS = "consult to the owner and send proof to [@Toolsforaffilatesupportbot]"
 
 # --- 5. Initialize the Telegram Bot ---
 bot = telebot.TeleBot(BOT_TOKEN)
