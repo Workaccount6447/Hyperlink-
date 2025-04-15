@@ -35,7 +35,7 @@ def capture_and_crop_screenshot(url):
         driver = webdriver.Chrome(service=service)
 
         driver.set_window_size(1024, 768)  # Set an initial window size
-        driver.get(https://mypricehistory.com/product/boat-airdopes-91-45hrs-battery-50ms-low-latency-enx-tech-fast-charge-ipx4-iwp-tech-v5-3-bluetooth-earbuds-tws-ear-buds-wireless-earphones-with-mic-active-black-P0TSB8H8ORHN)
+        driver.get("https://mypricehistory.com/product/boat-airdopes-91-45hrs-battery-50ms-low-latency-enx-tech-fast-charge-ipx4-iwp-tech-v5-3-bluetooth-earbuds-tws-ear-buds-wireless-earphones-with-mic-active-black-P0TSB8H8ORHN")
 
         # Give the page a moment to load (adjust as needed)
         driver.implicitly_wait(5)
