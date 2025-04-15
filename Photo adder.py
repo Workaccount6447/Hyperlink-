@@ -7,7 +7,7 @@ import re
 import asyncio
 
 # Define the owner ID
-OWNER_ID = 123456789  # Replace with your Telegram user ID
+OWNER_ID = 7588665244  # Replace with your Telegram user ID
 
 # Set to store authorized user IDs
 AUTHORIZED_USERS = {OWNER_ID}
@@ -108,7 +108,7 @@ async def remove_user(update: Update, context: CallbackContext):
 # Run the bot
 if __name__ == '__main__':
     async def main():
-        application = ApplicationBuilder().token("YOUR_BOT_TOKEN_HERE").build()  # Replace with your bot token
+        application = ApplicationBuilder().token("7864703583:AAGqZInSK2tp8Jykwpte7Ng0iunmYLlRwms").build()  # Replace with your bot token
 
         application.add_handler(CommandHandler("start", start))
         application.add_handler(CommandHandler("adduser", add_user))
