@@ -115,7 +115,10 @@ if __name__ == '__main__':
         application.add_handler(CommandHandler("removeuser", remove_user))
         application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
+        # Run the bot without asyncio.run()
         await application.run_polling()
 
-    asyncio.run(main())
+    # Directly use asyncio event loop to run the main function
+    asyncio.get_event_loop().run_until_complete(main())
+        
   
