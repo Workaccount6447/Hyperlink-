@@ -1,7 +1,7 @@
 import logging
 import requests
 from telegram import Update, InputFile
-from telegram.ext import Updater, CommandHandler, MessageHandler, CallbackContext, filters
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackContext, filters
 from PIL import Image
 from io import BytesIO
 import os
@@ -140,10 +140,10 @@ def handle_photo(update: Update, context: CallbackContext) -> None:
 # Define the main function to run the bot
 def main() -> None:
     # Replace 'YOUR_TOKEN' with your bot's token
-    updater = Updater("7864703583:AAGqZInSK2tp8Jykwpte7Ng0iunmYLlRwms")
+    application = ApplicationBuilder().token("7864703583:AAGqZInSK2tp8Jykwpte7Ng0iunmYLlRwms").build()
 
     # Get the dispatcher to register handlers
-    dispatcher = updater.dispatcher
+    dispatcher = application.dispatcher
 
     # Register handlers
     dispatcher.add_handler(CommandHandler("start", start))
@@ -154,10 +154,10 @@ def main() -> None:
     dispatcher.add_handler(MessageHandler(filters.PHOTO, handle_photo)) # Add handler for photos
 
     # Start the Bot
-    updater.start_polling()
+    application.run_polling()
 
     # Keep the bot running until you press Ctrl-C
-    updater.idle()
+    application.idle()
 
 if __name__ == '__main__':
     main()
