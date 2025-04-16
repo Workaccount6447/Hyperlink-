@@ -6,6 +6,7 @@ from PIL import Image
 from io import BytesIO
 import os
 import re
+import asyncio
 
 # Enable logging
 logging.basicConfig(
@@ -154,7 +155,7 @@ def main() -> None:
     application.run_polling()
 
     # Keep the bot running until you press Ctrl-C
-    application.idle()
+    asyncio.get_event_loop().run_forever()
 
 if __name__ == '__main__':
     main()
