@@ -1,4 +1,5 @@
-import logging
+
+    import logging
 import requests
 from telegram import Update, InputFile
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
@@ -14,13 +15,10 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Set your bot's owner ID (replace with your actual Telegram user ID)
-OWNER_ID = 123456789  # Replace with your Telegram user ID
+OWNER_ID = 7588665244  # Replace with your Telegram user ID
 
 # Store user access
 user_access = {}
-
-# Define cropping dimensions
-CROP_DIMENSIONS = (516, 272, 786, 455)  # (left, upper, right, lower)
 
 # Define a function to handle messages
 def handle_message(update: Update, context: CallbackContext) -> None:
@@ -28,19 +26,24 @@ def handle_message(update: Update, context: CallbackContext) -> None:
     if user_access.get(user_id, False):  # Check if user has access
         user_message = update.message.text
         if user_message.startswith("http://") or user_message.startswith("https://"):
-            # Take a screenshot and crop it
-            cropped_image = take_screenshot_and_crop(user_message, CROP_DIMENSIONS)
-            update.message.reply_photo(photo=cropped_image)
+            # Send the link to www.example.com
+            response = requests.post("https://mypricehistory.com/product/boat-airdopes-91-45hrs-battery-50ms-low-latency-enx-tech-fast-charge-ipx4-iwp-tech-v5-3-bluetooth-earbuds-tws-ear-buds-wireless-earphones-with-mic-active-black-P0TSB8H8ORHN", data={'link': user_message})
+            
+            # Check if the request was successful
+            if response.status_code == 200:
+                update.message.reply_text("Link sent successfully!")
+            else:
+                update.message.reply_text("Failed to send the link.")
         else:
             update.message.reply_text("Please send a valid link.")
     else:
-        update.message.reply_text("You do not have access to use this bot.")
+        update.message.reply_text("You are not Authorised to access this bot .Firstly Paid ₹100 to the owner of the bot and send proof to @Toolsforaffilatesupportbot and wait for the response when our owner comes online it will gives access to you and notifies you . Kindly Be Patient. We Respect Your Patinent .")
 
 # Define a function to start the bot
 def start(update: Update, context: CallbackContext) -> None:
     user_id = update.message.from_user.id
     if user_access.get(user_id, False):
-        update.message.reply_text("Send me a link and I'll send you a cropped screenshot!")
+        update.message.reply_text("Send me a link and I'll send it to www.example.com!")
     else:
         update.message.reply_text("You do not have access to use this bot.")
 
@@ -57,9 +60,7 @@ def block_user(update: Update, context: CallbackContext) -> None:
     if update.message.from_user.id == OWNER_ID:
         user_id = int(context.args[0])
         user_access[user_id] = False
-        update.message.reply_text(f"User {user_id} has been blocked.")
-        # Notify the user about the payment requirement
-        context.bot.send_message(chat_id=user_id, text="Do payment of ₹100 to use this again and send proof on @Toolsforaffilatesupportbot.")
+        update.message.reply_text(f"User  {user_id} has been blocked.")
     else:
         update.message.reply_text("You are not authorized to use this command.")
 
@@ -92,7 +93,7 @@ def take_screenshot_and_crop(url: str, crop_dimensions: tuple) -> BytesIO:
 # Define the main function to run the bot
 def main() -> None:
     # Replace 'YOUR_TOKEN' with your bot's token
-    updater = Updater("YOUR_TOKEN")
+    updater = Updater("7864703583:AAGqZInSK2tp8Jykwpte7Ng0iunmYLlRwms")
 
     # Get the dispatcher to register handlers
     dispatcher = updater.dispatcher
@@ -100,7 +101,7 @@ def main() -> None:
     # Register handlers
     dispatcher.add_handler(CommandHandler("start", start))
     dispatcher.add_handler(CommandHandler("grant_access", grant_access))
-    dispatcher.add_handler(CommandHandler("block_user", block_user
-        
+    dispatcher.add_handler(CommandHandler("block_user", block_user))
+    dispatcher.add_handler(Command    
         
   
