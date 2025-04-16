@@ -142,16 +142,13 @@ def main() -> None:
     # Replace 'YOUR_TOKEN' with your bot's token
     application = ApplicationBuilder().token("7864703583:AAGqZInSK2tp8Jykwpte7Ng0iunmYLlRwms").build()
 
-    # Get the dispatcher to register handlers
-    dispatcher = application.dispatcher
-
-    # Register handlers
-    dispatcher.add_handler(CommandHandler("start", start))
-    dispatcher.add_handler(CommandHandler("grant_access", grant_access, pass_args=True))
-    dispatcher.add_handler(CommandHandler("block_user", block_user, pass_args=True))
-    dispatcher.add_handler(CommandHandler("list_users", list_users))
-    dispatcher.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    dispatcher.add_handler(MessageHandler(filters.PHOTO, handle_photo)) # Add handler for photos
+    # Register handlers directly to the application
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("grant_access", grant_access, pass_args=True))
+    application.add_handler(CommandHandler("block_user", block_user, pass_args=True))
+    application.add_handler(CommandHandler("list_users", list_users))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    application.add_handler(MessageHandler(filters.PHOTO, handle_photo)) # Add handler for photos
 
     # Start the Bot
     application.run_polling()
