@@ -1,134 +1,106 @@
-import telebot
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.service import Service as ChromeService
-from webdriver_manager.chrome import ChromeDriverManager
+import logging
+import requests
+from telegram import Update, InputFile
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 from PIL import Image
-import re  # For finding links in text
+from io import BytesIO
+import os
 
-# --- 1. Bot Token and Owner ID ---
-BOT_TOKEN = "7864703583:AAGqZInSK2tp8Jykwpte7Ng0iunmYLlRwms"  # Replace with your actual bot token
-OWNER_ID = 7588665244  # Replace with your Telegram user ID (as an integer)
+# Enable logging
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.INFO
+)
+logger = logging.getLogger(__name__)
 
-# --- 2. Authorized Users (Initially Empty) ---
-authorized_users = set()
+# Set your bot's owner ID (replace with your actual Telegram user ID)
+OWNER_ID = 123456789  # Replace with your Telegram user ID
 
-# --- 3. Support Bot Username ---
-SUPPORT_BOT_USERNAME = "@supportbot"
+# Store user access
+user_access = {}
 
-# --- 4. Payment Information ---
-PAYMENT_AMOUNT = 100
-PAYMENT_INSTRUCTIONS = "consult to the owner and send proof to [@Toolsforaffilatesupportbot]"
+# Define cropping dimensions
+CROP_DIMENSIONS = (516, 272, 786, 455)  # (left, upper, right, lower)
 
-# --- 5. Initialize the Telegram Bot ---
-bot = telebot.TeleBot(BOT_TOKEN)
-
-# --- 6. Function to Check if a User is Authorized ---
-def is_authorized(user_id):
-    return user_id == OWNER_ID or user_id in authorized_users
-
-# --- 7. Function to Capture and Crop Screenshot ---
-def capture_and_crop_screenshot(url):
-    try:
-        # Set up Chrome WebDriver (you might need to adjust this based on your setup)
-        service = ChromeService(ChromeDriverManager().install())
-        driver = webdriver.Chrome(service=service)
-
-        driver.set_window_size(1024, 768)  # Set an initial window size
-        driver.get("https://mypricehistory.com/product/boat-airdopes-91-45hrs-battery-50ms-low-latency-enx-tech-fast-charge-ipx4-iwp-tech-v5-3-bluetooth-earbuds-tws-ear-buds-wireless-earphones-with-mic-active-black-P0TSB8H8ORHN")
-
-        # Give the page a moment to load (adjust as needed)
-        driver.implicitly_wait(5)
-
-        # Take a screenshot
-        driver.save_screenshot("screenshot.png")
-
-        # Crop the image
-        img = Image.open("screenshot.png")
-        cropped_img = img.crop((272, 516, 272 + 270, 516 + 183))  # (left, top, right, bottom)
-        cropped_img.save("cropped_screenshot.png")
-
-        driver.quit()
-        return "cropped_screenshot.png"
-    except Exception as e:
-        print(f"Error capturing screenshot: {e}")
-        return None
-
-# --- 8. Function to Find a Link in Text ---
-def find_link(text):
-    url_pattern = re.compile(r'https?://\S+|www\.\S+')
-    match = url_pattern.search(text)
-    if match:
-        url = match.group(0)
-        # Add 'https://' if it's just 'www'
-        if not url.startswith("http"):
-            url = "https://" + url
-        return url
-    return None
-
-# --- 9. Handler for the /start Command ---
-@bot.message_handler(commands=['start'])
-def send_welcome(message):
-    bot.reply_to(message, f"You are not authorised to access the bot. Do payment of ₹{PAYMENT_AMOUNT} or {PAYMENT_INSTRUCTIONS}. After that the owner will give you access after he verified.\n\nPlease be patient.")
-
-# --- 10. Handler for the /authorize Command (Owner Only) ---
-@bot.message_handler(commands=['authorize'])
-def authorize_user(message):
-    if message.from_user.id == OWNER_ID:
-        if len(message.text.split()) == 2:
-            try:
-                user_id_to_authorize = int(message.text.split()[1])
-                authorized_users.add(user_id_to_authorize)
-                bot.reply_to(message, f"User ID {user_id_to_authorize} has been authorized.")
-            except ValueError:
-                bot.reply_to(message, "Invalid user ID. Please use /authorize <user_id>.")
+# Define a function to handle messages
+def handle_message(update: Update, context: CallbackContext) -> None:
+    user_id = update.message.from_user.id
+    if user_access.get(user_id, False):  # Check if user has access
+        user_message = update.message.text
+        if user_message.startswith("http://") or user_message.startswith("https://"):
+            # Take a screenshot and crop it
+            cropped_image = take_screenshot_and_crop(user_message, CROP_DIMENSIONS)
+            update.message.reply_photo(photo=cropped_image)
         else:
-            bot.reply_to(message, "Please provide the user ID to authorize. Usage: /authorize <user_id>")
+            update.message.reply_text("Please send a valid link.")
     else:
-        bot.reply_to(message, "You are not authorized to use this command.")
+        update.message.reply_text("You do not have access to use this bot.")
 
-# --- 11. Handler for the /remove Command (Owner Only) ---
-@bot.message_handler(commands=['remove'])
-def remove_user(message):
-    if message.from_user.id == OWNER_ID:
-        if len(message.text.split()) == 2:
-            try:
-                user_id_to_remove = int(message.text.split()[1])
-                if user_id_to_remove in authorized_users:
-                    authorized_users.remove(user_id_to_remove)
-                    bot.reply_to(message, f"User ID {user_id_to_remove} has been removed.")
-                else:
-                    bot.reply_to(message, f"User ID {user_id_to_remove} is not authorized.")
-            except ValueError:
-                bot.reply_to(message, "Invalid user ID. Please use /remove <user_id>.")
-        else:
-            bot.reply_to(message, "Please provide the user ID to remove. Usage: /remove <user_id>")
+# Define a function to start the bot
+def start(update: Update, context: CallbackContext) -> None:
+    user_id = update.message.from_user.id
+    if user_access.get(user_id, False):
+        update.message.reply_text("Send me a link and I'll send you a cropped screenshot!")
     else:
-        bot.reply_to(message, "You are not authorized to use this command.")
+        update.message.reply_text("You do not have access to use this bot.")
 
-# --- 12. Handler for Text Messages (Link Processing) ---
-@bot.message_handler(func=lambda message: True)
-def process_message(message):
-    user_id = message.from_user.id
-    if is_authorized(user_id):
-        link = find_link(message.text)
-        if link:
-            bot.reply_to(message, f"Processing link: {link}")
-            screenshot_path = capture_and_crop_screenshot(link)
-            if screenshot_path:
-                with open(screenshot_path, 'rb') as photo:
-                    bot.send_photo(message.chat.id, photo, caption=message.text)
-            else:
-                bot.reply_to(message, "Failed to capture or process the screenshot.")
-        else:
-            bot.reply_to(message, "No valid link found in your message.")
+# Owner commands
+def grant_access(update: Update, context: CallbackContext) -> None:
+    if update.message.from_user.id == OWNER_ID:
+        user_id = int(context.args[0])
+        user_access[user_id] = True
+        update.message.reply_text(f"Access granted to user {user_id}.")
     else:
-        bot.reply_to(message, f"You are not authorised to access the bot. Do payment of ₹{PAYMENT_AMOUNT} or {PAYMENT_INSTRUCTIONS}. After that the owner will give you access after he verified.\n\nPlease be patient.")
+        update.message.reply_text("You are not authorized to use this command.")
 
-# --- 13. Start Listening for Messages ---
-if __name__ == '__main__':
-    print("Bot is running...")
-    bot.polling(none_stop=True)
+def block_user(update: Update, context: CallbackContext) -> None:
+    if update.message.from_user.id == OWNER_ID:
+        user_id = int(context.args[0])
+        user_access[user_id] = False
+        update.message.reply_text(f"User {user_id} has been blocked.")
+        # Notify the user about the payment requirement
+        context.bot.send_message(chat_id=user_id, text="Do payment of ₹100 to use this again and send proof on @Toolsforaffilatesupportbot.")
+    else:
+        update.message.reply_text("You are not authorized to use this command.")
+
+def list_users(update: Update, context: CallbackContext) -> None:
+    if update.message.from_user.id == OWNER_ID:
+        users = [user_id for user_id, access in user_access.items() if access]
+        update.message.reply_text(f"Users with access: {users}")
+    else:
+        update.message.reply_text("You are not authorized to use this command.")
+
+# Function to crop an image
+def crop_image(image: Image, crop_dimensions: tuple) -> Image:
+    return image.crop(crop_dimensions)
+
+# Function to take a screenshot and crop it
+def take_screenshot_and_crop(url: str, crop_dimensions: tuple) -> BytesIO:
+    # Here you would implement the screenshot logic (e.g., using Selenium or another library)
+    # For demonstration, let's assume we have a screenshot image
+    screenshot_image = Image.new('RGB', (800, 600), color='blue')  # Placeholder for the screenshot
+
+    # Crop the image
+    cropped_image = crop_image(screenshot_image, crop_dimensions)
+    
+    # Save to BytesIO
+    img_byte_arr = BytesIO()
+    cropped_image.save(img_byte_arr, format='PNG')
+    img_byte_arr.seek(0)
+    return img_byte_arr
+
+# Define the main function to run the bot
+def main() -> None:
+    # Replace 'YOUR_TOKEN' with your bot's token
+    updater = Updater("YOUR_TOKEN")
+
+    # Get the dispatcher to register handlers
+    dispatcher = updater.dispatcher
+
+    # Register handlers
+    dispatcher.add_handler(CommandHandler("start", start))
+    dispatcher.add_handler(CommandHandler("grant_access", grant_access))
+    dispatcher.add_handler(CommandHandler("block_user", block_user
         
         
   
