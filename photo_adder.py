@@ -1,11 +1,11 @@
 import logging
 import requests
 from telegram import Update, InputFile
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
+from telegram.ext import Updater, CommandHandler, MessageHandler, CallbackContext, filters
 from PIL import Image
 from io import BytesIO
 import os
-import re  # Import the regular expression module
+import re
 
 # Enable logging
 logging.basicConfig(
@@ -150,8 +150,8 @@ def main() -> None:
     dispatcher.add_handler(CommandHandler("grant_access", grant_access, pass_args=True))
     dispatcher.add_handler(CommandHandler("block_user", block_user, pass_args=True))
     dispatcher.add_handler(CommandHandler("list_users", list_users))
-    dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_message))
-    dispatcher.add_handler(MessageHandler(Filters.photo, handle_photo)) # Add handler for photos
+    dispatcher.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    dispatcher.add_handler(MessageHandler(filters.PHOTO, handle_photo)) # Add handler for photos
 
     # Start the Bot
     updater.start_polling()
