@@ -5,6 +5,7 @@ from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, Callb
 from PIL import Image
 from io import BytesIO
 import os
+import re  # Import the regular expression module
 
 # Enable logging
 logging.basicConfig(
@@ -24,13 +25,23 @@ def handle_message(update: Update, context: CallbackContext) -> None:
     user_id = update.message.from_user.id
     if user_access.get(user_id, False):  # Check if user has access
         user_message = update.message.text
-        if user_message.startswith("http://") or user_message.startswith("https://"):
+
+        # Find the first valid URL in the message
+        url_match = re.search(r'(https?://\S+)', user_message)
+
+        if url_match:
+            extracted_url = url_match.group(0)
+            remaining_text = user_message.replace(extracted_url, '', 1).strip() # Remove the URL and any extra whitespace
+
             # Send the link to www.example.com
-            response = requests.post("https://mypricehistory.com/product/boat-airdopes-91-45hrs-battery-50ms-low-latency-enx-tech-fast-charge-ipx4-iwp-tech-v5-3-bluetooth-earbuds-tws-ear-buds-wireless-earphones-with-mic-active-black-P0TSB8H8ORHN", data={'link': user_message})
-            
+            response = requests.post("https://mypricehistory.com/product/boat-airdopes-91-45hrs-battery-50ms-low-latency-enx-tech-fast-charge-ipx4-iwp-tech-v5-3-bluetooth-earbuds-tws-ear-buds-wireless-earphones-with-mic-active-black-P0TSB8H8ORHN", data={'link': extracted_url})
+
             # Check if the request was successful
             if response.status_code == 200:
-                update.message.reply_text("Link sent successfully!")
+                reply_text = "Link sent successfully!"
+                if remaining_text:
+                    reply_text += f"\n\nAdditional text: {remaining_text}"
+                update.message.reply_text(reply_text)
             else:
                 update.message.reply_text("Failed to send the link.")
         else:
@@ -42,31 +53,43 @@ def handle_message(update: Update, context: CallbackContext) -> None:
 def start(update: Update, context: CallbackContext) -> None:
     user_id = update.message.from_user.id
     if user_access.get(user_id, False):
-        update.message.reply_text("Send me a link and I'll send it to www.example.com!")
+        update.message.reply_text("Send me a link (you can add some text before or after) and I'll process the link!")
     else:
         update.message.reply_text("You do not have access to use this bot.")
 
 # Owner commands
 def grant_access(update: Update, context: CallbackContext) -> None:
     if update.message.from_user.id == OWNER_ID:
-        user_id = int(context.args[0])
-        user_access[user_id] = True
-        update.message.reply_text(f"Access granted to user {user_id}.")
+        if context.args:
+            try:
+                user_id = int(context.args[0])
+                user_access[user_id] = True
+                update.message.reply_text(f"Access granted to user {user_id}.")
+            except ValueError:
+                update.message.reply_text("Please provide a valid user ID.")
+        else:
+            update.message.reply_text("Please provide a user ID to grant access.")
     else:
         update.message.reply_text("You are not authorized to use this command.")
 
 def block_user(update: Update, context: CallbackContext) -> None:
     if update.message.from_user.id == OWNER_ID:
-        user_id = int(context.args[0])
-        user_access[user_id] = False
-        update.message.reply_text(f"User  {user_id} has been blocked.")
+        if context.args:
+            try:
+                user_id = int(context.args[0])
+                user_access[user_id] = False
+                update.message.reply_text(f"User {user_id} has been blocked.")
+            except ValueError:
+                update.message.reply_text("Please provide a valid user ID.")
+        else:
+            update.message.reply_text("Please provide a user ID to block.")
     else:
         update.message.reply_text("You are not authorized to use this command.")
 
 def list_users(update: Update, context: CallbackContext) -> None:
     if update.message.from_user.id == OWNER_ID:
-        users = [user_id for user_id, access in user_access.items() if access]
-        update.message.reply_text(f"Users with access: {users}")
+        access_granted_users = [user_id for user_id, access in user_access.items() if access]
+        update.message.reply_text(f"Users with access: {access_granted_users}")
     else:
         update.message.reply_text("You are not authorized to use this command.")
 
@@ -82,12 +105,37 @@ def take_screenshot_and_crop(url: str, crop_dimensions: tuple) -> BytesIO:
 
     # Crop the image
     cropped_image = crop_image(screenshot_image, crop_dimensions)
-    
+
     # Save to BytesIO
     img_byte_arr = BytesIO()
     cropped_image.save(img_byte_arr, format='PNG')
     img_byte_arr.seek(0)
     return img_byte_arr
+
+# Define a handler for sending a photo with the original link and text
+def handle_photo(update: Update, context: CallbackContext) -> None:
+    user_id = update.message.from_user.id
+    if user_access.get(user_id, False):
+        if update.message.caption:
+            caption_text = update.message.caption
+            url_match = re.search(r'(https?://\S+)', caption_text)
+            if url_match:
+                extracted_url = url_match.group(0)
+                remaining_text = caption_text.replace(extracted_url, '', 1).strip()
+
+                # For demonstration, we'll just reply with the caption and extracted URL
+                reply_text = f"Received a photo with the following information:\nLink: {extracted_url}"
+                if remaining_text:
+                    reply_text += f"\nAdditional text: {remaining_text}"
+                update.message.reply_text(reply_text)
+                # In a real scenario, you might want to process the photo and the link.
+            else:
+                update.message.reply_text("Received a photo, but no valid link was found in the caption.")
+        else:
+            update.message.reply_text("Received a photo without a caption containing a link.")
+    else:
+        update.message.reply_text("You are not authorized to access this bot.")
+
 
 # Define the main function to run the bot
 def main() -> None:
@@ -99,8 +147,17 @@ def main() -> None:
 
     # Register handlers
     dispatcher.add_handler(CommandHandler("start", start))
-    dispatcher.add_handler(CommandHandler("grant_access", grant_access))
-    dispatcher.add_handler(CommandHandler("block_user", block_user))
-    dispatcher.add_handler(Command    
-        
-  
+    dispatcher.add_handler(CommandHandler("grant_access", grant_access, pass_args=True))
+    dispatcher.add_handler(CommandHandler("block_user", block_user, pass_args=True))
+    dispatcher.add_handler(CommandHandler("list_users", list_users))
+    dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_message))
+    dispatcher.add_handler(MessageHandler(Filters.photo, handle_photo)) # Add handler for photos
+
+    # Start the Bot
+    updater.start_polling()
+
+    # Keep the bot running until you press Ctrl-C
+    updater.idle()
+
+if __name__ == '__main__':
+    main()
