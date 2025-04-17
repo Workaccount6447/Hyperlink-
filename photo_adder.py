@@ -48,7 +48,7 @@ async def handle_message(update: Update, context: CallbackContext) -> None:
         else:
             await update.message.reply_text("Please send a valid link.")
     else:
-        await update.message.reply_text("You are not Authorised to access this bot .Firstly Paid ₹100 to the owner of the bot and send proof to @Toolsforaffilatesupportbot and wait for the response when our owner comes online it will gives access to you and notifies you . Kindly Be Patient. We Respect Your Patinent .")
+        await update.message.reply_text("You are not Authorised to access this bot .Firstly Pay ₹100 to the owner of the bot , meed any help then contact owmer on bot and send proof to @Toolsforaffilatesupportbot and wait for the response when our owner comes online it will gives access to you and notifies you . Kindly Be Patient. We Respect Your Patinent .")
 
 # Define a function to start the bot
 async def start(update: Update, context: CallbackContext) -> None:
