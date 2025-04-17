@@ -155,4 +155,4 @@ async def main() -> None:
     await application.run_polling()
 
 if __name__ == '__main__':
-    asyncio.get_event_loop().run_until_complete(main())l
+    asyncio.get_event_loop().run_until_complete(main())
