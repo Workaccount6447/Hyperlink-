@@ -22,7 +22,7 @@ OWNER_ID = 7588665244  # Replace with your Telegram user ID
 user_access = {}
 
 # Define a function to handle messages
-def handle_message(update: Update, context: CallbackContext) -> None:
+async def handle_message(update: Update, context: CallbackContext) -> None:
     user_id = update.message.from_user.id
     if user_access.get(user_id, False):  # Check if user has access
         user_message = update.message.text
@@ -42,57 +42,57 @@ def handle_message(update: Update, context: CallbackContext) -> None:
                 reply_text = "Link sent successfully!"
                 if remaining_text:
                     reply_text += f"\n\nAdditional text: {remaining_text}"
-                update.message.reply_text(reply_text)
+                await update.message.reply_text(reply_text)
             else:
-                update.message.reply_text("Failed to send the link.")
+                await update.message.reply_text("Failed to send the link.")
         else:
-            update.message.reply_text("Please send a valid link.")
+            await update.message.reply_text("Please send a valid link.")
     else:
-        update.message.reply_text("You are not Authorised to access this bot .Firstly Paid ₹100 to the owner of the bot and send proof to @Toolsforaffilatesupportbot and wait for the response when our owner comes online it will gives access to you and notifies you . Kindly Be Patient. We Respect Your Patinent .")
+        await update.message.reply_text("You are not Authorised to access this bot .Firstly Paid ₹100 to the owner of the bot and send proof to @Toolsforaffilatesupportbot and wait for the response when our owner comes online it will gives access to you and notifies you . Kindly Be Patient. We Respect Your Patinent .")
 
 # Define a function to start the bot
-def start(update: Update, context: CallbackContext) -> None:
+async def start(update: Update, context: CallbackContext) -> None:
     user_id = update.message.from_user.id
     if user_access.get(user_id, False):
-        update.message.reply_text("Send me a link (you can add some text before or after) and I'll process the link!")
+        await update.message.reply_text("Send me a link (you can add some text before or after) and I'll process the link!")
     else:
-        update.message.reply_text("You do not have access to use this bot.")
+        await update.message.reply_text("You do not have access to use this bot.")
 
 # Owner commands
-def grant_access(update: Update, context: CallbackContext) -> None:
+async def grant_access(update: Update, context: CallbackContext) -> None:
     if update.message.from_user.id == OWNER_ID:
         if context.args:
             try:
                 user_id = int(context.args[0])
                 user_access[user_id] = True
-                update.message.reply_text(f"Access granted to user {user_id}.")
+                await update.message.reply_text(f"Access granted to user {user_id}.")
             except ValueError:
-                update.message.reply_text("Please provide a valid user ID.")
+                await update.message.reply_text("Please provide a valid user ID.")
         else:
-            update.message.reply_text("Please provide a user ID to grant access.")
+            await update.message.reply_text("Please provide a user ID to grant access.")
     else:
-        update.message.reply_text("You are not authorized to use this command.")
+        await update.message.reply_text("You are not authorized to use this command.")
 
-def block_user(update: Update, context: CallbackContext) -> None:
+async def block_user(update: Update, context: CallbackContext) -> None:
     if update.message.from_user.id == OWNER_ID:
         if context.args:
             try:
                 user_id = int(context.args[0])
                 user_access[user_id] = False
-                update.message.reply_text(f"User {user_id} has been blocked.")
+                await update.message.reply_text(f"User {user_id} has been blocked.")
             except ValueError:
-                update.message.reply_text("Please provide a valid user ID.")
+                await update.message.reply_text("Please provide a valid user ID.")
         else:
-            update.message.reply_text("Please provide a user ID to block.")
+            await update.message.reply_text("Please provide a user ID to block.")
     else:
-        update.message.reply_text("You are not authorized to use this command.")
+        await update.message.reply_text("You are not authorized to use this command.")
 
-def list_users(update: Update, context: CallbackContext) -> None:
+async def list_users(update: Update, context: CallbackContext) -> None:
     if update.message.from_user.id == OWNER_ID:
         access_granted_users = [user_id for user_id, access in user_access.items() if access]
-        update.message.reply_text(f"Users with access: {access_granted_users}")
+        await update.message.reply_text(f"Users with access: {access_granted_users}")
     else:
-        update.message.reply_text("You are not authorized to use this command.")
+        await update.message.reply_text("You are not authorized to use this command.")
 
 # Function to crop an image
 def crop_image(image: Image, crop_dimensions: tuple) -> Image:
@@ -114,7 +114,7 @@ def take_screenshot_and_crop(url: str, crop_dimensions: tuple) -> BytesIO:
     return img_byte_arr
 
 # Define a handler for sending a photo with the original link and text
-def handle_photo(update: Update, context: CallbackContext) -> None:
+async def handle_photo(update: Update, context: CallbackContext) -> None:
     user_id = update.message.from_user.id
     if user_access.get(user_id, False):
         if update.message.caption:
@@ -128,18 +128,18 @@ def handle_photo(update: Update, context: CallbackContext) -> None:
                 reply_text = f"Received a photo with the following information:\nLink: {extracted_url}"
                 if remaining_text:
                     reply_text += f"\nAdditional text: {remaining_text}"
-                update.message.reply_text(reply_text)
+                await update.message.reply_text(reply_text)
                 # In a real scenario, you might want to process the photo and the link.
             else:
-                update.message.reply_text("Received a photo, but no valid link was found in the caption.")
+                await update.message.reply_text("Received a photo, but no valid link was found in the caption.")
         else:
-            update.message.reply_text("Received a photo without a caption containing a link.")
+            await update.message.reply_text("Received a photo without a caption containing a link.")
     else:
-        update.message.reply_text("You are not authorized to access this bot.")
+        await update.message.reply_text("You are not authorized to access this bot.")
 
 
 # Define the main function to run the bot
-def main() -> None:
+async def main() -> None:
     # Replace 'YOUR_TOKEN' with your bot's token
     application = ApplicationBuilder().token("7864703583:AAGqZInSK2tp8Jykwpte7Ng0iunmYLlRwms").build()
 
@@ -152,10 +152,8 @@ def main() -> None:
     application.add_handler(MessageHandler(filters.PHOTO, handle_photo)) # Add handler for photos
 
     # Start the Bot
-    application.run_polling()
-
-    # Keep the bot running until you press Ctrl-C
-    asyncio.get_event_loop().run_forever()
+    await application.run_polling()
 
 if __name__ == '__main__':
-    main()
+    asyncio.run(main())
+
