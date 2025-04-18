@@ -1,4 +1,3 @@
-
 import logging
 import requests
 from telegram import Update, InputFile
@@ -140,11 +139,8 @@ async def handle_photo(update: Update, context: CallbackContext) -> None:
 
 
 # Define the main function to run the bot
-async def main() -> None:
+async def main(application: ApplicationBuilder) -> None:
     # Replace 'YOUR_TOKEN' with your bot's token
-    application = ApplicationBuilder().token("7864703583:AAGqZInSK2tp8Jykwpte7Ng0iunmYLlRwms").build()
-
-    # Register handlers directly to the application
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("grant_access", grant_access))
     application.add_handler(CommandHandler("block_user", block_user))
@@ -152,9 +148,9 @@ async def main() -> None:
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     application.add_handler(MessageHandler(filters.PHOTO, handle_photo)) # Add handler for photos
 
-    # Start the Bot
-    application.run_polling()
+    # Start polling
+    await application.run_polling()
 
 if __name__ == '__main__':
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(main())
+    application = ApplicationBuilder().token("7864703583:AAGqZInSK2tp8Jykwpte7Ng0iunmYLlRwms").build() # Build the application
+    asyncio.run(main(application)) # Run main, which now starts polling
