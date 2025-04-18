@@ -1,3 +1,4 @@
+
 import logging
 import requests
 from telegram import Update, InputFile
@@ -152,7 +153,8 @@ async def main() -> None:
     application.add_handler(MessageHandler(filters.PHOTO, handle_photo)) # Add handler for photos
 
     # Start the Bot
-    await application.run_polling()
+    application.run_polling()
 
 if __name__ == '__main__':
-    asyncio.run(main())
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(main())
