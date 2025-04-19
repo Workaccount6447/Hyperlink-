@@ -1,5 +1,5 @@
 python-telegram-bot==20.7
 Pillow==10.3.0
 selenium==4.20.0
-nest_asyncio==1.6.0
-requests==2.31.0
+nest_asyncio==1.5.4
+requests==2.31
