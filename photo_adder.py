@@ -234,7 +234,7 @@ async def main(application: ApplicationBuilder) -> None:
         save_access(user_access) # Save user access when closing
 
 
-if __name_ == '__main__':
+if __name__ == '__main__':
     application = ApplicationBuilder().token("7864703583:AAGqZInSK2tp8Jykwpte7Ng0iunmYLlRwms").build() # Replace with your bot token
     user_access = load_access() # Load user access from json
     asyncio.run(main(application)) # Call main to start the bot
