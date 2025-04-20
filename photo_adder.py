@@ -16,7 +16,7 @@ from selenium.webdriver.chrome.options import Options
 
 # --- Configuration ---
 OWNER_ID = 7588665244
-BOT_TOKEN = "YOUR_BOT_TOKEN"
+BOT_TOKEN = "7864703583:AAGqZInSK2tp8Jykwpte7Ng0iunmYLlRwms"
 ACCESS_FILE = "access.json"
 HEALTH_PORT = 8000
 
