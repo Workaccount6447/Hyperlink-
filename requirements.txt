@@ -1,6 +1,11 @@
-python-telegram-bot==20.7
+aiogram==3.4
+aiohttp==3.9.3
 requests
-pillow
-python-docx
+python-dotenv
+openai
+fastapi
+uvicorn
 PyMuPDF
+python-docx
 pytesseract
+Pillow
