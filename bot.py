@@ -24,7 +24,7 @@ HEADERS = {
 user_histories = {}
 translation_requests = {}
 
-async def ask_deepseek(history):
+async def ask_gemma(history):
     payload = {
         "model": MODEL,
         "messages": history
