@@ -48,21 +48,34 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     await update.message.reply_text(
         f"🎉 *Welcome {user.first_name}!* 🎉  \n\n"
-        "✨ *I'm your personal AI assistant* ✨  \n\n"
-        "🤖 How can I assist you today?  \n\n"
-        "🔥 *Features*:  \n"
-        "✅ 100% Free & Unlimited  \n"
-        "✅ Instant Responses  \n"
-        "✅ Memory Across Chats  \n"
-        "✅File Supports \n\n"
-        "📝 *Quick Commands*:  \n"
-        "🔄 /new - Fresh start  \n"
-        "ℹ️ /help - Show this menu  \n\n"
-        "⚡ *Try asking*:  \n"
-        "\"Explain like I'm 5 🧒\"  \n"
-        "\"Give me 3 ideas 💡\"  \n\n"
-        "🛠️ Support: @Smartautomationsuppport_bot  \n"
-        "🚀 Powered by: @smartautomations",
+        from telegram import ParseMode, InlineKeyboardButton, InlineKeyboardMarkup
+
+# Define your reply_markup if needed
+reply_markup = InlineKeyboardMarkup([
+    [InlineKeyboardButton("Support", url="https://t.me/Smartautomationsuppport_bot")]
+])
+
+await update.message.reply_text(
+    f"🎉 *Welcome {user.first_name}!* 🎉  \n\n"
+    "✨ *I'm your personal AI assistant* ✨  \n\n"
+    "🤖 How can I assist you today?  \n\n"
+    "🔥 *Features*:  \n"
+    "✅ 100% Free & Unlimited  \n"
+    "✅ Instant Responses  \n"
+    "✅ Memory Across Chats  \n"
+    "✅ File Supports \n\n"
+    "📝 *Quick Commands*:  \n"
+    "🔄 /new - Fresh start  \n"
+    "ℹ️ /help - Show this menu  \n\n"
+    "⚡ *Try asking*:  \n"
+    "\"Explain like I'm 5 🧒\"  \n"
+    "\"Give me 3 ideas 💡\"  \n\n"
+    "🛠️ Support: @Smartautomationsuppport_bot  \n"
+    "🚀 Powered by: @smartautomations",
+    parse_mode=ParseMode.MARKDOWN,
+    reply_markup=reply_markup
+)
+
         parse_mode=ParseMode.MARKDOWN,
         reply_markup=reply_markup
     )
