@@ -10,3 +10,4 @@ PyMuPDF
 python-docx
 pytesseract
 Pillow
+Flask
