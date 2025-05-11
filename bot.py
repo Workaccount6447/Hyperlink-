@@ -76,9 +76,6 @@ await update.message.reply_text(
     reply_markup=reply_markup
 )
 
-        parse_mode=ParseMode.MARKDOWN,
-        reply_markup=reply_markup
-    )
 
 async def new(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
