@@ -1,223 +1,307 @@
-import logging
+import os
 import requests
-import re
-import json
-import asyncio
-import traceback
-
-from telegram import Update, InputFile
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackContext, filters
+import fitz
+from docx import Document
 from PIL import Image
-from io import BytesIO
-from aiohttp import web  # For Koyeb health check
+import pytesseract
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import ApplicationBuilder, MessageHandler, filters, CommandHandler, ContextTypes, CallbackQueryHandler
+from telegram.constants import ParseMode
+import tempfile
 
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
+# Configuration
+MODEL = "google/gemma-9b-it"
+API_KEY = os.getenv("OPENROUTER_API_KEY")
+OWNER_ID = int(os.getenv("OWNER_ID"))
+BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+BASE_URL = "https://openrouter.ai/api/v1/chat/completions"
+HEADERS = {
+    "Authorization": f"Bearer {API_KEY}",
+    "Content-Type": "application/json",
+    "HTTP-Referer": "https://t.me/smartautomations_bot"
+}
 
-# --- Configuration ---
-OWNER_ID = 7588665244
-BOT_TOKEN = "7903608399:AAGxBNWuFGKHUv3J0poHKR8-vd-IIC--odU"
-ACCESS_FILE = "access.json"
-HEALTH_PORT = 8000
+user_histories = {}
+translation_requests = {}
 
-# --- Logging ---
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-# --- Access Control ---
-def load_access():
+async def ask_deepseek(history):
+    payload = {
+        "model": MODEL,
+        "messages": history
+    }
     try:
-        with open(ACCESS_FILE, "r") as f:
-            return json.load(f)
-    except FileNotFoundError:
-        return {}
+        response = requests.post(BASE_URL, headers=HEADERS, json=payload, timeout=60)
+        return response.json()["choices"][0]["message"]["content"]
+    except Exception:
+        return "⚠️ Error connecting to AI."
 
-def save_access(data):
-    with open(ACCESS_FILE, "w") as f:
-        json.dump(data, f)
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    keyboard = [
+        [InlineKeyboardButton("📢 Main Channel", url="https://t.me/smartautomations")],
+        [InlineKeyboardButton("🆘 Help", callback_data="help"),
+         InlineKeyboardButton("🔄 New Chat", callback_data="new")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    await update.message.reply_text(
+        f"🎉 *Welcome {user.first_name}!* 🎉  \n\n"
+        "✨ *I'm your personal AI assistant* ✨  \n\n"
+        "🤖 How can I assist you today?  \n\n"
+        "🔥 *Features*:  \n"
+        "✅ 100% Free & Unlimited  \n"
+        "✅ Instant Responses  \n"
+        "✅ Memory Across Chats  \n"
+        "✅File Supports \n\n"
+        "📝 *Quick Commands*:  \n"
+        "🔄 /new - Fresh start  \n"
+        "ℹ️ /help - Show this menu  \n\n"
+        "⚡ *Try asking*:  \n"
+        "\"Explain like I'm 5 🧒\"  \n"
+        "\"Give me 3 ideas 💡\"  \n\n"
+        "🛠️ Support: @Smartautomationsuppport_bot  \n"
+        "🚀 Powered by: @smartautomations",
+        parse_mode=ParseMode.MARKDOWN,
+        reply_markup=reply_markup
+    )
 
-user_access = load_access()
+async def new(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    user_histories[user_id] = []
+    await update.message.reply_text(
+        "🔄 *Memory Cleared!* 🧹\n\n"
+        "Ask me anything new! 💭\n\n"
+        "*Try these*:\n"
+        "• \"Tell me a fun fact 🎲\"\n"
+        "• \"Help me brainstorm 💡\"", 
+        parse_mode=ParseMode.MARKDOWN
+    )
 
-# --- Command Handlers ---
-async def start(update: Update, context: CallbackContext) -> None:
-    user_id = update.message.from_user.id
-    if user_access.get(str(user_id), False):
-        await update.message.reply_text("Send a product link, and I'll process it with a screenshot!")
-    else:
-        await update.message.reply_text("You are not authorized. Pay ₹100 and send proof to @Toolsforaffilatesupportbot.")
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "🆘 *@smartautomations_bot Help* 🆘\n────────────────────\n"
+        "💬 *How to chat*:\nJust type messages like:\n"
+        "• \"Explain quantum physics ⚛️\"\n• \"Write a haiku about cats 🐱\"\n\n"
+        "🌍 *Translation*:\nClick 'Translate' button then send language name\n\n"
+        "⚙️ *Commands*:\n🔄 /new - Reset conversation\nℹ️ /help - This message\n\n"
+        "📏 *Limits*:\n4000 chars/message\n\n"
+        "🔋 *Status*: Operational ✅",
+        parse_mode=ParseMode.MARKDOWN
+    )
 
-async def grant_access(update: Update, context: CallbackContext) -> None:
-    if update.message.from_user.id == OWNER_ID:
-        if context.args:
-            user_id = context.args[0]
-            user_access[str(user_id)] = True
-            save_access(user_access)
-            await update.message.reply_text(f"Access granted to user {user_id}.")
-        else:
-            await update.message.reply_text("Usage: /grant_access <user_id>")
-    else:
-        await update.message.reply_text("You are not authorized.")
+async def privacy_policy(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "🛡️ Privacy Policy 🛡️\n\n"
+        "We're committed to protecting your data and follow all data protection laws! Here's how we handle your information:\n\n"
+        "*1. 💾 Data Collection and Storage 💾*\n"
+        "• 🔍 Only necessary data is collected\n"
+        "• 👤 Info like username and Telegram ID only\n"
+        "• 🙅‍♀️ No extra personal data is stored\n\n"
+        "*2. 🤖 Use of Data 🤖*\n"
+        "• 🚀 Used only to improve bot performance\n"
+        "• 💬 Message history stored temporarily for better conversation\n"
+        "• ⚙️ Mode, balance, and settings retained for smooth experience\n\n"
+        "*3. 🔒 Data Protection 🔒*\n"
+        "• 💪 Strong security measures in place\n"
+        "• 🛡️ Secure servers and limited access\n\n"
+        "*4. 🗑️ Data Deletion 🗑️*\n"
+        "• 🧹 Reset deletes all previous messages\n"
+        "• 🙋‍♀️ Request data deletion anytime\n\n"
+        "*5. 🤝 Data Sharing 🤝*\n"
+        "• 🚫 Never shared or sold to anyone\n\n"
+        "*6. 🔄 Changes to Privacy Policy 🔄*\n"
+        "• ✍️ We may update this policy\n"
+        "• 🔔 We’ll notify of major changes\n\n"
+        "By using our bot, you agree to this privacy policy.\n\n"
+        "If you have any questions or concerns, please reach out! 📧 We're here to help. 😊",
+        parse_mode=ParseMode.MARKDOWN
+    )
 
-async def block_user(update: Update, context: CallbackContext) -> None:
-    if update.message.from_user.id == OWNER_ID:
-        if context.args:
-            user_id = context.args[0]
-            user_access[str(user_id)] = False
-            save_access(user_access)
-            await update.message.reply_text(f"User {user_id} has been blocked.")
-        else:
-            await update.message.reply_text("Usage: /block_user <user_id>")
-    else:
-        await update.message.reply_text("You are not authorized.")
-
-async def list_users(update: Update, context: CallbackContext) -> None:
-    if update.message.from_user.id == OWNER_ID:
-        allowed = [uid for uid, v in user_access.items() if v]
-        await update.message.reply_text(f"Allowed users: {allowed}")
-    else:
-        await update.message.reply_text("You are not authorized.")
-
-# --- Message Handlers ---
-async def handle_message(update: Update, context: CallbackContext) -> None:
-    user_id = update.message.from_user.id
-    if not user_access.get(str(user_id), False):
-        await update.message.reply_text("You are not authorized to use this bot.")
+async def announcement_by_owner(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    if user_id != OWNER_ID:
+        await update.message.reply_text("🚫 This command is restricted to the bot owner only.")
+        return
+    if not context.args:
+        await update.message.reply_text("ℹ️ Usage: /announcementbyowner Your announcement text here")
         return
 
-    user_message = update.message.text
-    url_match = re.search(r'(https?://\S+)', user_message)
+    announcement_text = " ".join(context.args)
+    active_users = list(user_histories.keys())
+    await update.message.reply_text(f"📢 Starting broadcast to {len(active_users)} users...")
 
-    if not url_match:
-        await update.message.reply_text("Please send a valid product link.")
-        return
-
-    extracted_url = url_match.group(0)
-    remaining_text = user_message.replace(extracted_url, '', 1).strip()
-    await update.message.reply_text("Processing your link...")
-
-    try:
-        headers = {'User-Agent': 'Mozilla/5.0'}
-        response = requests.post(
-            "https://mypricehistory.com/product/boat-airdopes-91-45hrs-battery-50ms-low-latency-enx-tech-fast-charge-ipx4-iwp-tech-v5-3-bluetooth-earbuds-tws-ear-buds-wireless-earphones-with-mic-active-black-P0TSB8H8ORHN",
-            data={'link': extracted_url}, headers=headers, timeout=10)
-
-        if response.status_code == 200:
-            reply_text = "Link sent successfully!"
-            if remaining_text:
-                reply_text += f"\n\nNote: {remaining_text}"
-
-            img = await take_screenshot_and_crop(extracted_url, (272, 516, 272 + 270, 516 + 183))
-            if img:
-                await context.bot.send_photo(chat_id=update.message.chat_id, photo=InputFile(img, filename="screenshot.png"), caption=reply_text)
-            else:
-                await update.message.reply_text(reply_text + "\nBut screenshot failed.")
-        else:
-            await update.message.reply_text(f"Failed to process link. Status: {response.status_code}")
-    except Exception as e:
-        logger.error(f"Processing error: {e}\n{traceback.format_exc()}")
-        await update.message.reply_text(f"Error occurred: {str(e)}")
-
-async def handle_photo(update: Update, context: CallbackContext) -> None:
-    user_id = update.message.from_user.id
-    if not user_access.get(str(user_id), False):
-        await update.message.reply_text("You are not authorized to use this bot.")
-        return
-
-    photo = update.message.photo[-1]
-    photo_file = await photo.get_file()
-    photo_bytes = await photo_file.download_as_bytearray()
-
-    try:
-        img = Image.open(BytesIO(photo_bytes)).convert("RGB")
-        output = BytesIO()
-        img.save(output, format="PNG")
-        output.seek(0)
-
-        await context.bot.send_document(
-            chat_id=update.message.chat_id,
-            document=InputFile(output, filename="converted_image.png"),
-            caption="Here is your image converted to PNG."
-        )
-    except Exception as e:
-        logger.error(f"Image conversion error: {e}")
-        await update.message.reply_text("Failed to convert the image.")
-
-# --- Screenshot Utility ---
-def crop_image(image: Image, dimensions: tuple) -> Image:
-    return image.crop(dimensions)
-
-async def take_screenshot_and_crop(url: str, crop_dimensions: tuple) -> BytesIO | None:
-    try:
-        options = Options()
-        options.add_argument("--headless")
-        options.add_argument("--no-sandbox")
-        options.add_argument("--disable-dev-shm-usage")
-
-        driver = webdriver.Chrome(options=options)
-        driver.set_page_load_timeout(10)
-
+    success = 0
+    fail = 0
+    for chat_id in active_users:
         try:
-            driver.get(url)
-            driver.set_window_size(1280, 1024)
-            await asyncio.sleep(3)
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text=f"📢 *Owner Announcement*\n\n{announcement_text}\n\n- Bot Owner",
+                parse_mode=ParseMode.MARKDOWN
+            )
+            success += 1
+        except:
+            fail += 1
 
-            png = BytesIO(driver.get_screenshot_as_png())
-            image = Image.open(png)
-            cropped = crop_image(image, crop_dimensions)
-            result = BytesIO()
-            cropped.save(result, format='PNG')
-            result.seek(0)
-            return result
-        finally:
-            driver.quit()
-    except Exception as e:
-        logger.error(f"Screenshot error: {e}")
-        return None
+    await update.message.reply_text(f"✅ Broadcast completed!\n\n• Successfully sent: {success}\n• Failed to send: {fail}")
 
-# --- Koyeb Health Check ---
-async def healthcheck(request):
-    return web.Response(text="Bot is alive!")
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    text = update.message.text.strip().lower()
 
-async def start_health_server():
-    app = web.Application()
-    app.router.add_get("/", healthcheck)
-    runner = web.AppRunner(app)
-    await runner.setup()
-    site = web.TCPSite(runner, port=HEALTH_PORT)
-    await site.start()
-    logger.info(f"Health check running on port {HEALTH_PORT}")
+    # Custom hardcoded replies
+    if any(q in text for q in ["who are you", "what are you", "your name"]):
+        await update.message.reply_text("🤖 I am ChatGPT, your AI assistant!")
+        return
+    if any(q in text for q in ["can i create you", "did i create you", "did i made you"]):
+        await update.message.reply_text("🙅‍♂️ No, you didn’t create me.")
+        return
+    if "who created you" in text:
+        await update.message.reply_text("👨‍🔬 I was created by OpenAI.")
+        return
 
-# --- Main Entry ---
-async def main():
-    import nest_asyncio
-    nest_asyncio.apply()
+    if user_id not in user_histories:
+        user_histories[user_id] = []
 
-    application = ApplicationBuilder().token(BOT_TOKEN).build()
+    msg = await update.message.reply_text(
+        "🔍 Smart AI is thinking 🤔...\n\n"
+        "✨ We respect your patience\n\n"
+        "Total Expected Duration:\n"
+        "✅ Simple queries: 3–8 seconds\n"
+        "⚠️ Complex queries: 8–15 seconds"
+    )
 
-    # Command Handlers
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("grant_access", grant_access))
-    application.add_handler(CommandHandler("block_user", block_user))
-    application.add_handler(CommandHandler("list_users", list_users))
+    user_histories[user_id].append({"role": "user", "content": update.message.text})
+    reply = await ask_deepseek(user_histories[user_id])
+    keyboard = [[InlineKeyboardButton("🌐 Translate", callback_data="translate")]]
+    await msg.edit_text(reply, reply_markup=InlineKeyboardMarkup(keyboard))
 
-    # Message Handlers
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    application.add_handler(MessageHandler(filters.PHOTO, handle_photo))
+async def handle_translation_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
 
-    await start_health_server()
+    translation_requests[update.effective_user.id] = {
+        'text': query.message.text,
+        'state': 'awaiting_language'
+    }
 
-    await application.run_polling()
+    await query.message.reply_text(
+        "🌍 *Translation Requested*\n\n"
+        "Kindly send me the **name of your language** in English.\n\n"
+        "Examples:\n"
+        "• `French`\n"
+        "• `Arabic`\n"
+        "• `Hindi`\n"
+        "• `Japanese`",
+        parse_mode=ParseMode.MARKDOWN
+    )
+
+async def handle_language_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    if user_id not in translation_requests:
+        return
+
+    language_name = update.message.text.strip().title()
+    original_text = translation_requests[user_id]['text']
+    try:
+        url = (
+            f"https://translate.googleapis.com/translate_a/single?"
+            f"client=gtx&sl=auto&tl={language_name.lower()}&dt=t&q={requests.utils.quote(original_text)}"
+        )
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        translated_text = ''.join([seg[0] for seg in response.json()[0] if seg[0]])
+
+        await update.message.reply_text(
+            f"🌐 *Translated to {language_name}:*\n\n{translated_text}",
+            parse_mode=ParseMode.MARKDOWN
+        )
+    except:
+        await update.message.reply_text(
+            "⚠️ *Invalid Language Name*\n\n"
+            "Please send the **correct English name** of your language.\n\n"
+            "Examples:\n"
+            "• `Spanish` (not 'es')\n"
+            "• `Russian` (not 'ru')\n"
+            "• `Chinese` (not 'zh')",
+            parse_mode=ParseMode.MARKDOWN
+        )
+    finally:
+        if user_id in translation_requests:
+            del translation_requests[user_id]
+
+async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    file = update.message.document
+
+    if file.mime_type not in ["application/pdf", "text/plain", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"]:
+        await update.message.reply_text("⚠️ Unsupported file type. Please send a .txt, .pdf, or .docx file.")
+        return
+
+    file_path = f"{file.file_unique_id}_{file.file_name}"
+    new_file = await file.get_file()
+    await new_file.download_to_drive(file_path)
+
+    try:
+        if file.mime_type == "text/plain":
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+        elif file.mime_type == "application/pdf":
+            content = await extract_text_from_pdf(file_path)
+        elif file.mime_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+            content = await extract_text_from_docx(file_path)
+    except:
+        await update.message.reply_text("⚠️ Failed to read the file.")
+        os.remove(file_path)
+        return
+
+    os.remove(file_path)
+    if len(content) > 4000:
+        content = content[:4000]
+
+    user_histories[user_id] = [{"role": "user", "content": f"Please summarize or explain this:\n\n{content}"}]
+    msg = await update.message.reply_text("📂 Reading your file...\n🔍 Smart AI is thinking 🤔...")
+    reply = await ask_deepseek(user_histories[user_id])
+    keyboard = [[InlineKeyboardButton("🌐 Translate", callback_data="translate")]]
+    await msg.edit_text(reply, reply_markup=InlineKeyboardMarkup(keyboard))
+
+async def extract_text_from_pdf(path):
+    content = ""
+    doc = fitz.open(path)
+    for page in doc:
+        text = page.get_text()
+        if text.strip():
+            content += text
+        else:
+            img = page.get_pixmap()
+            img_path = "page.png"
+            img.save(img_path)
+            content += pytesseract.image_to_string(Image.open(img_path))
+            os.remove(img_path)
+    doc.close()
+    return content
+
+async def extract_text_from_docx(path):
+    doc = Document(path)
+    return "\n".join(p.text for p in doc.paragraphs)
 
 if __name__ == "__main__":
-    import asyncio
+    app = ApplicationBuilder().token(BOT_TOKEN).build()
 
-    loop = asyncio.get_event_loop()
-    try:
-        loop.create_task(main())
-        loop.run_forever()
-    except KeyboardInterrupt:
-        pass
-    finally:
-        loop.close()
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("new", new))
+    app.add_handler(CommandHandler("help", help_command))
+    app.add_handler(CommandHandler("privacypolicy", privacy_policy))
+    app.add_handler(CommandHandler("announcementbyowner", announcement_by_owner))
+    app.add_handler(CallbackQueryHandler(handle_translation_button, pattern="translate"))
+    app.add_handler(CallbackQueryHandler(help_command, pattern="help"))
+    app.add_handler(CallbackQueryHandler(new, pattern="new"))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_language_input))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    app.add_handler(MessageHandler(filters.Document.ALL, handle_file))
+
+    print("Bot is running...")
+    app.run_polling()
+    
 
     
