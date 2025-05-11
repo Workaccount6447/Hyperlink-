@@ -8,6 +8,8 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, MessageHandler, filters, CommandHandler, ContextTypes, CallbackQueryHandler
 from telegram.constants import ParseMode
 import tempfile
+from threading import Thread
+from flask import Flask
 
 # Configuration
 MODEL = "google/gemma-9b-it"
@@ -284,6 +286,20 @@ async def extract_text_from_pdf(path):
 async def extract_text_from_docx(path):
     doc = Document(path)
     return "\n".join(p.text for p in doc.paragraphs)
+    
+
+health_app = Flask(__name__)
+
+@health_app.route('/')
+def index():
+    return 'OK'
+
+def run_health_server():
+    health_app.run(host='0.0.0.0', port=8000)
+
+# Start Flask health check server in a background thread
+Thread(target=run_health_server).start()
+
 
 if __name__ == "__main__":
     app = ApplicationBuilder().token(BOT_TOKEN).build()
@@ -305,5 +321,5 @@ if __name__ == "__main__":
     
 
     
-    application.run(host="0.0.0.0")
+
 
