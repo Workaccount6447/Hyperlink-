@@ -11,3 +11,11 @@ python-docx
 pytesseract
 Pillow
 Flask
+flask
+python-telegram-bot
+requests
+fitz
+python-docx
+pillow
+pytesseract
+gunicorn
