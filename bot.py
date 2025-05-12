@@ -27,12 +27,11 @@ HEADERS = {
 user_histories = {}
 translation_requests = {}
 
-# Initialize Flask
-app = Flask(__name__)
+flask_app = Flask(__name__)
 
 # Flask health check endpoint
-@app.route('/health', methods=['GET'])
-def health_check():
+@flask_app.route("/")
+def health():
     return "OK", 200
 
 async def ask_gemma(history):
@@ -238,7 +237,8 @@ app.add_handler(MessageHandler(filters.TEXT, handle_language_input))
 
 # Run Flask on a separate thread
 def run_flask():
-    app.run(host="0.0.0.0", port=8000)
+    flask_app.run(host="0.0.0.0", port=8000)
+
 
 if __name__ == "__main__":
     # Start Flask health server
