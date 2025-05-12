@@ -1,6 +1,5 @@
 import os
 import requests
-import fitz
 from docx import Document
 from PIL import Image
 import pytesseract
