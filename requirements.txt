@@ -6,4 +6,4 @@ python-docx
 pillow
 pytesseract
 gunicorn
-PyMuPDF==1.18.19
+PyMuPDF==1.18.14
