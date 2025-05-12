@@ -1,15 +1,29 @@
-FROM python:3.9-slim
+# Use an official Python base image
+FROM python:3.10-slim
 
+# Set working directory
 WORKDIR /app
 
-# Copy the requirements file into the container
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    tesseract-ocr \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
+ && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements first to leverage Docker cache
 COPY requirements.txt .
 
-# Install dependencies
+# Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the application files into the container
+# Copy the rest of the application
 COPY . .
 
-# Start the application
+# Expose port for Flask health check
+EXPOSE 8000
+
+# Start the bot (this assumes bot.py runs both Flask and Telegram bot)
 CMD ["python", "bot.py"]
