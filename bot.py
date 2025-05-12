@@ -27,6 +27,14 @@ HEADERS = {
 user_histories = {}
 translation_requests = {}
 
+# Initialize Flask
+app = Flask(__name__)
+
+# Flask health check endpoint
+@app.route('/health', methods=['GET'])
+def health_check():
+    return "OK", 200
+
 async def ask_gemma(history):
     payload = {
         "model": MODEL,
@@ -228,6 +236,14 @@ app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 app.add_handler(CallbackQueryHandler(handle_translation_button, pattern="translate"))
 app.add_handler(MessageHandler(filters.TEXT, handle_language_input))
 
-# Run the bot
+# Run Flask on a separate thread
+def run_flask():
+    app.run(host="0.0.0.0", port=8000)
+
 if __name__ == "__main__":
+    # Start Flask health server
+    Thread(target=run_flask).start()
+    # Start the Telegram bot
     app.run_polling()
+
+
