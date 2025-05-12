@@ -10,7 +10,6 @@ from telegram.constants import ParseMode
 import tempfile
 from threading import Thread
 from flask import Flask
-import logging
 
 # Configuration
 MODEL = "google/gemma-9b-it"
@@ -26,16 +25,6 @@ HEADERS = {
 
 user_histories = {}
 translation_requests = {}
-
-# Flask app to run on port 8000
-app = Flask(__name__)
-
-@app.route('/')
-def health_check():
-    return 'Health check passed!'
-
-def run_flask():
-    app.run(host="0.0.0.0", port=8000)
 
 async def ask_gemma(history):
     payload = {
@@ -228,19 +217,16 @@ async def handle_language_input(update: Update, context: ContextTypes.DEFAULT_TY
         await update.message.reply_text("⚠️ Sorry, I couldn't translate that. Please try again.")
 
 # Set up command handlers
-telegram_app = ApplicationBuilder().token(BOT_TOKEN).build()
-telegram_app.add_handler(CommandHandler("start", start))
-telegram_app.add_handler(CommandHandler("new", new))
-telegram_app.add_handler(CommandHandler("help", help_command))
-telegram_app.add_handler(CommandHandler("privacy", privacy_policy))
-telegram_app.add_handler(CommandHandler("announcementbyowner", announcement_by_owner))
-telegram_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-telegram_app.add_handler(CallbackQueryHandler(handle_translation_button, pattern="translate"))
-telegram_app.add_handler(MessageHandler(filters.TEXT, handle_language_input))
+app = ApplicationBuilder().token(BOT_TOKEN).build()
+app.add_handler(CommandHandler("start", start))
+app.add_handler(CommandHandler("new", new))
+app.add_handler(CommandHandler("help", help_command))
+app.add_handler(CommandHandler("privacy", privacy_policy))
+app.add_handler(CommandHandler("announcementbyowner", announcement_by_owner))
+app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+app.add_handler(CallbackQueryHandler(handle_translation_button, pattern="translate"))
+app.add_handler(MessageHandler(filters.TEXT, handle_language_input))
 
-# Run Flask in a separate thread
-Thread(target=run_flask).start()
-
-# Run the Telegram bot
+# Run the bot
 if __name__ == "__main__":
-    telegram_app.run_polling()
+    app.run_polling()
