@@ -7,3 +7,4 @@ pillow
 pytesseract
 gunicorn
 PyMuPDF==1.18.14
+python-dotenv
