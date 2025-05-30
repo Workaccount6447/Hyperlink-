@@ -1,7 +1,9 @@
-python-telegram-bot==20.7
-python-dotenv
+python-telegram-bot==20.3
 requests
-pillow
-python-docx
-pytesseract
-flask
+aiohttp
+openai
+yt_dlp
+transformers
+torch
+whisper
+pydub
