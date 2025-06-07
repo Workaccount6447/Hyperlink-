@@ -1,9 +1,0 @@
-python-telegram-bot==20.3
-requests
-aiohttp
-openai
-yt_dlp
-transformers
-torch
-whisper
-pydub
