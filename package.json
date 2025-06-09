@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "server.js",
   "scripts": {
-    "start": "nodeserver.js"
+    "start": "node server.js"
   },
   "dependencies": {
     "puter-js": "^1.0.6",
