@@ -1,5 +1,10 @@
-import os, re, logging, json, requests from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto from telegram.ext import Updater, Filters, MessageHandler, CallbackContext, CallbackQueryHandler
-
+import os
+import re
+import json
+import logging
+import requests
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Updater, Filters, MessageHandler, CallbackContext, CallbackQueryHandler
 logging.basicConfig(level=logging.INFO) logger = logging.getLogger(name)
 
 CHANNELS = { 'C1': { 'chat': '@Dealsduniyalimited', 'sankmo': '66e62d6c3d06a67d606147fe0c774539', 'ekaro': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2N2JmMTY4Zjc2N2RiN2IzOWY3ZDNmZTIiLCJlYXJua2FybyI6IjQyMTg5MDkiLCJpYXQiOjE3NTA2NTU3OTB9.TjksUyuVLeVgXvIRbzFK1byHMNdcCrqr5CAAjrIzAeQ' }, 'C2': { 'chat': '@dealsduniyaloot', 'sankmo': '66e62d6c3d06a67d606147fe0c774539', 'ekaro': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2N2JmMTY4Zjc2N2RiN2IzOWY3ZDNmZTIiLCJlYXJua2FybyI6IjQyMTg5MDkiLCJpYXQiOjE3NTA2NTU3OTB9.TjksUyuVLeVgXvIRbzFK1byHMNdcCrqr5CAAjrIzAeQ' }, 'C3': { 'chat': '@dealsofferslooters', 'sankmo': '66e62d6c3d06a67d606147fe0c774539', 'ekaro': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2N2JmMTY4Zjc2N2RiN2IzOWY3ZDNmZTIiLCJlYXJua2FybyI6IjQyMTg5MDkiLCJpYXQiOjE3NTA2NTU4Mzd9.R7F6GE06Kifl7VExLq9nBxO-zGbpa_ocCRKembcBBsc' }, 'C4': { 'chat': '@dealsofferslooters2', 'sankmo': '66e62d6c3d06a67d606147fe0c774539', 'ekaro': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2N2JmMTY4Zjc2N2RiN2IzOWY3ZDNmZTIiLCJlYXJua2FybyI6IjQyMTg5MDkiLCJpYXQiOjE3NTA2NTU4Mzd9.R7F6GE06Kifl7VExLq9nBxO-zGbpa_ocCRKembcBBsc' } }
