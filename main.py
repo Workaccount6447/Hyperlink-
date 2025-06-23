@@ -1,61 +1,117 @@
 import os
-import re
-import json
 import logging
+import json
 import requests
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto
 from telegram.ext import Updater, Filters, MessageHandler, CallbackContext, CallbackQueryHandler
-logging.basicConfig(level=logging.INFO) logger = logging.getLogger(name)
 
-CHANNELS = { 'C1': { 'chat': '@Dealsduniyalimited', 'sankmo': '66e62d6c3d06a67d606147fe0c774539', 'ekaro': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2N2JmMTY4Zjc2N2RiN2IzOWY3ZDNmZTIiLCJlYXJua2FybyI6IjQyMTg5MDkiLCJpYXQiOjE3NTA2NTU3OTB9.TjksUyuVLeVgXvIRbzFK1byHMNdcCrqr5CAAjrIzAeQ' }, 'C2': { 'chat': '@dealsduniyaloot', 'sankmo': '66e62d6c3d06a67d606147fe0c774539', 'ekaro': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2N2JmMTY4Zjc2N2RiN2IzOWY3ZDNmZTIiLCJlYXJua2FybyI6IjQyMTg5MDkiLCJpYXQiOjE3NTA2NTU3OTB9.TjksUyuVLeVgXvIRbzFK1byHMNdcCrqr5CAAjrIzAeQ' }, 'C3': { 'chat': '@dealsofferslooters', 'sankmo': '66e62d6c3d06a67d606147fe0c774539', 'ekaro': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2N2JmMTY4Zjc2N2RiN2IzOWY3ZDNmZTIiLCJlYXJua2FybyI6IjQyMTg5MDkiLCJpYXQiOjE3NTA2NTU4Mzd9.R7F6GE06Kifl7VExLq9nBxO-zGbpa_ocCRKembcBBsc' }, 'C4': { 'chat': '@dealsofferslooters2', 'sankmo': '66e62d6c3d06a67d606147fe0c774539', 'ekaro': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2N2JmMTY4Zjc2N2RiN2IzOWY3ZDNmZTIiLCJlYXJua2FybyI6IjQyMTg5MDkiLCJpYXQiOjE3NTA2NTU4Mzd9.R7F6GE06Kifl7VExLq9nBxO-zGbpa_ocCRKembcBBsc' } }
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-BOT_OWNER = int(os.getenv('BOT_OWNER', '0')) BOT_TOKEN = os.getenv('BOT_TOKEN')
+CHANNEL_API_MAPPING = {
+    "C1": {
+        "channels": ["@Dealsduniyalimited", "@dealsduniyaloot"],
+        "sankmo": "66e62d6c3d06a67d606147fe0c774539",
+        "earnkaro": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2N2JmMTY4Zjc2N2RiN2IzOWY3ZDNmZTIiLCJlYXJua2FybyI6IjQyMTg5MDkiLCJpYXQiOjE3NTA2NTU3OTB9.TjksUyuVLeVgXvIRbzFK1byHMNdcCrqr5CAAjrIzAeQ"
+    },
+    "C2": {
+        "channels": ["@dealsofferslooters", "@dealsofferslooters2"],
+        "sankmo": "66e62d6c3d06a67d606147fe0c774539",
+        "earnkaro": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2N2JmMTY4Zjc2N2RiN2IzOWY3ZDNmZTIiLCJlYXJua2FybyI6IjQyMTg5MDkiLCJpYXQiOjE3NTA2NTU4Mzd9.R7F6GE06Kifl7VExLq9nBxO-zGbpa_ocCRKembcBBsc"
+    }
+}
 
-EKARO_URL = 'https://ekaro-api.affiliaters.in/api/converter/public'
+def convert_link(link, sankmo_api, earnkaro_api):
+    if "camerawale" in link.lower():
+        url = "https://sankmo-api-url.com/convert"
+        headers = {'Authorization': sankmo_api, 'Content-Type': 'application/json'}
+    else:
+        url = "https://ekaro-api.affiliaters.in/api/converter/public"
+        headers = {'Authorization': f'Bearer {earnkaro_api}', 'Content-Type': 'application/json'}
 
-def extract_urls(text): return re.findall(r'https?://[^\s]+', text)
+    payload = json.dumps({"deal": link, "convert_option": "convert_only"})
+    response = requests.post(url, headers=headers, data=payload)
+    
+    try:
+        data = response.json()
+        return data.get("converted_deal") or link
+    except Exception:
+        return link
 
-def convert_sankmo(api_key, text): urls = extract_urls(text) for u in urls: if 'amazon.' in u: r = requests.get(f"https://api.sankmo.com/convert?api_key={api_key}&url={u}") try: new = r.json().get('converted_url', u) text = text.replace(u, new) except: pass return text
+def handle_message(update: Update, context: CallbackContext):
+    user = update.effective_user
+    message = update.message
+    text = message.caption or message.text or ""
 
-def convert_ekaro(token, text): headers = { 'Authorization': f'Bearer {token}', 'Content-Type': 'application/json' } payload = json.dumps({"deal": text, "convert_option": "convert_only"}) try: r = requests.post(EKARO_URL, headers=headers, data=payload) if r.status_code == 200: return r.json().get('converted_deal', text) except: pass return text
+    matched_code = None
+    for code in CHANNEL_API_MAPPING:
+        if code in text:
+            matched_code = code
+            text = text.replace(code, "").strip()
+            break
 
-def convert_text(code, text): conf = CHANNELS[code] text = convert_sankmo(conf['sankmo'], text) text = convert_ekaro(conf['ekaro'], text) return text
+    if matched_code:
+        mapping = CHANNEL_API_MAPPING[matched_code]
+        sankmo_api = mapping["sankmo"]
+        earnkaro_api = mapping["earnkaro"]
+        new_text = convert_link(text, sankmo_api, earnkaro_api)
 
-def ask_code(update): btns = [[InlineKeyboardButton(f"Channel {i}", callback_data=f"C{i}")] for i in range(1, 5)] update.message.reply_text("Which channel to post to?", reply_markup=InlineKeyboardMarkup(btns))
+        if message.photo:
+            photo = message.photo[-1].file_id
+            for channel in mapping["channels"]:
+                context.bot.send_photo(chat_id=channel, photo=photo, caption=new_text)
+        else:
+            for channel in mapping["channels"]:
+                context.bot.send_message(chat_id=channel, text=new_text)
 
-def handle_message(update: Update, context: CallbackContext): msg = update.message user = msg.from_user.id chat = msg.chat
+        message.reply_text("✅ Deal sent to respective channels.")
 
-if chat.type == 'private' and user != BOT_OWNER:
-    return
+    else:
+        keyboard = [[InlineKeyboardButton("C1", callback_data='C1'),
+                     InlineKeyboardButton("C2", callback_data='C2')]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        message.reply_text("Select where to send the deal:", reply_markup=reply_markup)
 
-text = msg.caption or msg.text or ''
-code = next((c for c in CHANNELS if c in text), None)
+def button_callback(update: Update, context: CallbackContext):
+    query = update.callback_query
+    user_data = context.user_data
+    query.answer()
 
-if not code:
-    context.user_data['pending'] = {'text': text, 'photos': msg.photo}
-    ask_code(update)
-    return
+    selected_code = query.data
+    user_data['code'] = selected_code
 
-post_and_reply(update, context, code, text, msg.photo)
+    message = query.message
+    if message.caption:
+        text = message.caption
+    else:
+        text = message.text or ""
 
-def button_handler(update: Update, context: CallbackContext): query = update.callback_query code = query.data query.answer() data = context.user_data.pop('pending', {}) post_and_reply(query, context, code, data.get('text', ''), data.get('photos'))
+    mapping = CHANNEL_API_MAPPING[selected_code]
+    sankmo_api = mapping["sankmo"]
+    earnkaro_api = mapping["earnkaro"]
+    new_text = convert_link(text, sankmo_api, earnkaro_api)
 
-def post_and_reply(update_or_query, context: CallbackContext, code, text, photos): text = re.sub(r'\b' + code + r'\b', '', text).strip() converted = convert_text(code, text) target = CHANNELS[code]['chat']
+    if message.photo:
+        photo = message.photo[-1].file_id
+        for channel in mapping["channels"]:
+            context.bot.send_photo(chat_id=channel, photo=photo, caption=new_text)
+    else:
+        for channel in mapping["channels"]:
+            context.bot.send_message(chat_id=channel, text=new_text)
 
-if photos:
-    photo_id = photos[-1].file_id
-    context.bot.send_photo(chat_id=target, photo=photo_id, caption=converted)
-else:
-    context.bot.send_message(chat_id=target, text=converted)
+    query.edit_message_text("✅ Deal forwarded.")
 
-response = f"✅ Deal posted to {target}\n\n{converted}"
+def main():
+    from telegram.ext import Updater
+    TOKEN = os.getenv("BOT_TOKEN")
+    updater = Updater(TOKEN, use_context=True)
+    dp = updater.dispatcher
 
-if hasattr(update_or_query, 'message'):
-    update_or_query.message.reply_text(response)
-elif hasattr(update_or_query, 'edit_message_text'):
-    update_or_query.edit_message_text(response)
+    dp.add_handler(MessageHandler(Filters.text | Filters.caption, handle_message))
+    dp.add_handler(CallbackQueryHandler(button_callback))
 
-def main(): updater = Updater(BOT_TOKEN) dp = updater.dispatcher dp.add_handler(MessageHandler(Filters.text | Filters.photo, handle_message)) dp.add_handler(CallbackQueryHandler(button_handler)) updater.start_polling() updater.idle()
+    updater.start_polling()
+    updater.idle()
 
-if name == 'main': main()
-
+if __name__ == '__main__':
+    main()
