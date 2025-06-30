@@ -1,55 +1,33 @@
 
 const express = require('express');
-const puppeteer = require('puppeteer');
+const cors = require('cors');
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-let browser, page;
+app.use(cors());
+app.use(express.json());
 
-async function init() {
-    browser = await puppeteer.launch({
-        headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
-    });
-    page = await browser.newPage();
-    await page.goto('https://js.puter.com/v2/', {waitUntil: 'networkidle2'});
-    await page.addScriptTag({ url: 'https://js.puter.com/v2/' });
-}
-
-app.get('/chat', async (req, res) => {
-    const prompt = req.query.prompt || 'Hello';
-    const model = req.query.model || 'gpt-4o';
-
-    try {
-        const result = await page.evaluate(async (userPrompt, modelName) => {
-            const res = await puter.ai.chat(userPrompt, { model: modelName });
-            return res;
-        }, prompt, model);
-
-        res.json({ response: result });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+// Root route
+app.get('/', (req, res) => {
+  res.send('🌐 API Server is running.');
 });
 
-app.get('/image', async (req, res) => {
-    const prompt = req.query.prompt || 'a cat wearing sunglasses';
-    const model = req.query.model || 'dalle-3';
+// Example POST route for receiving messages from your bot
+app.post('/api/message', (req, res) => {
+  const { chat_id, message } = req.body;
 
-    try {
-        const imageUrl = await page.evaluate(async (userPrompt, modelName) => {
-            const res = await puter.ai.txt2img(userPrompt, { model: modelName });
-            return res;
-        }, prompt, model);
+  if (!chat_id || !message) {
+    return res.status(400).json({ error: "chat_id and message required." });
+  }
 
-        res.json({ image: imageUrl });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
+  console.log(`📩 Message received from ${chat_id}: ${message}`);
+  // You can add database logic, third-party calls, etc. here
+
+  res.json({ status: 'ok', reply: `Received: ${message}` });
 });
 
-init().then(() => {
-    app.listen(PORT, () => {
-        console.log(`Server running on port ${PORT}`);
-    });
+// Start the server
+app.listen(PORT, () => {
+  console.log(`✅ Server listening on port ${PORT}`);
 });
