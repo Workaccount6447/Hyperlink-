@@ -4,9 +4,11 @@ from urllib.parse import urlparse, urlunparse, parse_qs, urlencode
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ChatMember
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
 
-OWNER_ID = 123456789  # 🔁 Replace with your Telegram ID
+OWNER_ID = 7588665244  # 🔁 Replace with your Telegram ID
 SUPPORT_BOT = '@amazonlinkshortnerrobot'
 SHORT_API = 'https://individual-nanci-fhfhcd-8054f73b.koyeb.app/api?api=amazon&link='
+
+BOT_TOKEN = "8009237833:AAHobiuPy-SSgSoIDiCpqErcIGgDA4cSA5o"
 
 DATA_FILE = 'users.json'
 LINK_LOG = 'log.txt'
