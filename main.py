@@ -5,8 +5,10 @@ import re
 import requests
 from datetime import datetime, timedelta
 from telegram import (
-    Update, InlineKeyboardButton, InlineKeyboardMarkup, ChatAction
+    Update, InlineKeyboardButton, InlineKeyboardMarkup
 )
+from telegram.constants import ChatAction
+
 from telegram.ext import (
     ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler,
     ContextTypes, filters
