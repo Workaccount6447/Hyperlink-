@@ -13,8 +13,8 @@ from telegram.ext import (
 )
 
 # --- Configuration ---
-BOT_TOKEN = "YOUR_BOT_TOKEN"
-OWNER_ID = 123456789  # Replace with your actual Telegram user ID
+BOT_TOKEN = "8009237833:AAH93dARRAJXkqoS0l3iHfMn3pFPDWL2kYY"
+OWNER_ID = 7588665244  # Replace with your actual Telegram user ID
 DATA_FILE = "data.json"
 
 # --- Logging setup ---
