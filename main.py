@@ -16,7 +16,7 @@ from telegram.ext import (
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-OWNER_ID = 123456789  # Replace with your actual Telegram user ID
+OWNER_ID = 7588665244  # Replace with your actual Telegram user ID
 DATA_FILE = "users.json"
 
 def load_data():
