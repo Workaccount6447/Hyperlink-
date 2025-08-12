@@ -1,10 +1,11 @@
 import os
+import re
 import threading
-from flask import Flask
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, CallbackQueryHandler, filters
 import time
 import requests
+from flask import Flask
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, ContextTypes, filters
 
 # ==== HARDCODED CONFIG ====
 BOT_TOKEN = "8009237833:AAH93dARRAJXkqoS0l3iHfMn3pFPDWL2kYY"
@@ -58,7 +59,7 @@ async def add_premium(update: Update, context: ContextTypes.DEFAULT_TYPE):
     kvdb_set(f"user:{uid}:expiry", expiry)
     await context.bot.send_message(
         uid,
-        f"✅ You are now able to use this bot.\nTutorial - Coming Soon\nExpires After {days} days"
+        f"✅ You are now able to use this bot.\nTutorial - Coming Soon\nExpires After {days} days. /nSend /Start Again to setup the bot and start using bot functions . "
     )
     await update.message.reply_text(f"User {uid} added for {days} days.")
 
@@ -122,7 +123,13 @@ def extract_amazon_link(text):
 
 def replace_tag_and_shorten(link, new_tag):
     # Replace tag
-    link = re.sub(r"tag=[^&]+", f"tag={new_tag}", link)
+    if "tag=" in link:
+        link = re.sub(r"tag=[^&]+", f"tag={new_tag}", link)
+    else:
+        if "?" in link:
+            link += f"&tag={new_tag}"
+        else:
+            link += f"?tag={new_tag}"
     # Shorten
     try:
         resp = requests.get(SHORT_API + link)
@@ -149,5 +156,9 @@ def run_bot():
     app.run_polling()
 
 if __name__ == "__main__":
-    threading.Thread(target=run_bot).start()
-    flask_app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+    threading.Thread(target=run_bot, daemon=True).start()
+    flask_app.run(
+        host="0.0.0.0",
+        port=int(os.environ.get("PORT", 5000)),
+        use_reloader=False
+)
