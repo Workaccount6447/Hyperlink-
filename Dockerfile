@@ -9,4 +9,4 @@ COPY bot.py bot.py
 
 CMD ["python", "bot.py"]
 
-PORT=8000
+
