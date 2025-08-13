@@ -7,7 +7,7 @@ from telegram.ext import ContextTypes
 import server
 
 # --- BOT CONFIG ---
-BOT_TOKEN = "8009237833:AAH93dARRAJXkqoS0l3iHfMn3pFPDWL2kYY"
+BOT_TOKEN = "8009237833:AAHpVo798Sk5qtKRGHpDQYKSIxD2NEGLEfw"
 OWNER_ID = 7588665244
 KVDB_URL = "https://kvdb.io/BPkErVJ1RUwQA1brf928qK/"
 API_URL = "https://managing-pippy-fhfhcd-af2e08fb.koyeb.app/api?api=deepak&link="
