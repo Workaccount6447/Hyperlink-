@@ -12,7 +12,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Expose the port Render will use
-EXPOSE 5000
+
 
 # Start Flask (keeps port alive) + polling bot
 CMD ["python", "bot.py"]
