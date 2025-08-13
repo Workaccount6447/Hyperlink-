@@ -1,4 +1,4 @@
 python-telegram-bot==20.6
 Flask==2.3.2
 requests==2.31.0
-aiohttp
+aiogram
