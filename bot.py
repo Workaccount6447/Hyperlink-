@@ -1,134 +1,116 @@
 import requests
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, CallbackContext, CallbackQueryHandler
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackContext, CallbackQueryHandler, filters
 import datetime
 import json
 
-# ==== CONFIG ====
+# === CONFIG ===
 BOT_TOKEN = "8009237833:AAH93dARRAJXkqoS0l3iHfMn3pFPDWL2kYY"
 OWNER_ID = 7588665244
 DB_URL = "https://kvdb.io/BPkErVJ1RUwQA1brf928qK"
 API_URL = "https://managing-pippy-fhfhcd-af2e08fb.koyeb.app/api?api=deepak&link="
-# ================
+# ==============
 
-# Database helper
+# Database
 def db_set(key, value):
     requests.post(f"{DB_URL}/{key}", data=json.dumps(value))
 
 def db_get(key):
-    res = requests.get(f"{DB_URL}/{key}")
-    if res.status_code == 200 and res.text.strip():
-        return json.loads(res.text)
+    r = requests.get(f"{DB_URL}/{key}")
+    if r.status_code == 200 and r.text.strip():
+        return json.loads(r.text)
     return None
 
-def is_premium(user_id):
-    data = db_get(f"user_{user_id}")
+def is_premium(uid):
+    data = db_get(f"user_{uid}")
     if not data:
         return False
-    expiry = datetime.datetime.fromisoformat(data["expiry"])
-    return datetime.datetime.now() < expiry
+    exp = datetime.datetime.fromisoformat(data["expiry"])
+    return datetime.datetime.now() < exp
 
 # Commands
 async def start(update: Update, context: CallbackContext):
-    user_id = update.effective_user.id
-    if not is_premium(user_id):
-        await update.message.reply_text("You are not authorised to use the bot.\nContact admin: @AmazonLinkShortnerRobot")
+    uid = update.effective_user.id
+    if not is_premium(uid):
+        await update.message.reply_text(
+            "You are not authorised to use the bot.\nContact admin: @AmazonLinkShortnerRobot"
+        )
         return
-    
-    user_data = db_get(f"user_{user_id}")
-    if not user_data.get("setup_done", False):
-        keyboard = [
+    data = db_get(f"user_{uid}")
+    if not data.get("setup_done", False):
+        kb = [
             [InlineKeyboardButton("Set Amazon Tag", callback_data="set_tag")],
             [InlineKeyboardButton("Channel Setup", callback_data="set_channel")],
             [InlineKeyboardButton("Add Your Private Bot", callback_data="set_token")]
         ]
-        await update.message.reply_text(
-            "Setup Panel",
-            reply_markup=InlineKeyboardMarkup(keyboard)
-        )
+        await update.message.reply_text("Setup Panel", reply_markup=InlineKeyboardMarkup(kb))
     else:
         await update.message.reply_text("Welcome back! Send me an Amazon link.")
 
-async def add_user(update: Update, context: CallbackContext):
+async def add(update: Update, context: CallbackContext):
     if update.effective_user.id != OWNER_ID:
         return
     try:
-        user_id = int(context.args[0])
+        uid = int(context.args[0])
         days = int(context.args[1])
     except:
         await update.message.reply_text("Usage: /add <user_id> <days>")
         return
-    
-    expiry = datetime.datetime.now() + datetime.timedelta(days=days)
-    db_set(f"user_{user_id}", {"expiry": expiry.isoformat(), "setup_done": False})
-    await context.bot.send_message(
-        chat_id=user_id,
-        text=f"You are now able to use this bot.\nTutorial - Coming Soon\nExpires After {days} days"
-    )
-    await update.message.reply_text(f"User {user_id} added for {days} days.")
+    exp = datetime.datetime.now() + datetime.timedelta(days=days)
+    db_set(f"user_{uid}", {"expiry": exp.isoformat(), "setup_done": False})
+    await context.bot.send_message(uid, f"You can now use this bot.\nExpires in {days} days.")
+    await update.message.reply_text(f"User {uid} added for {days} days.")
 
 async def button_handler(update: Update, context: CallbackContext):
-    query = update.callback_query
-    await query.answer()
-    user_id = query.from_user.id
-    data = query.data
-
-    if data == "set_tag":
-        await query.edit_message_text("Please send your Amazon tag (e.g., Prashant75-21).")
-        db_set(f"user_{user_id}_step", {"step": "tag"})
-    elif data == "set_channel":
-        await query.edit_message_text("Send me your channel ID.\nUse @username_to_id_bot to get it.")
-        db_set(f"user_{user_id}_step", {"step": "channel"})
-    elif data == "set_token":
-        await query.edit_message_text("Send me your bot token.")
-        db_set(f"user_{user_id}_step", {"step": "token"})
+    q = update.callback_query
+    await q.answer()
+    uid = q.from_user.id
+    if q.data == "set_tag":
+        db_set(f"user_{uid}_step", {"step": "tag"})
+        await q.edit_message_text("Send your Amazon tag (e.g., mytag-21)")
+    elif q.data == "set_channel":
+        db_set(f"user_{uid}_step", {"step": "channel"})
+        await q.edit_message_text("Send your channel ID")
+    elif q.data == "set_token":
+        db_set(f"user_{uid}_step", {"step": "token"})
+        await q.edit_message_text("Send your bot token")
 
 async def text_handler(update: Update, context: CallbackContext):
-    user_id = update.effective_user.id
-    step_data = db_get(f"user_{user_id}_step")
+    uid = update.effective_user.id
+    step = db_get(f"user_{uid}_step")
     msg = update.message.text.strip()
 
-    if step_data:
-        step = step_data["step"]
-        if step == "tag":
-            user_data = db_get(f"user_{user_id}") or {}
+    if step:
+        user_data = db_get(f"user_{uid}") or {}
+        if step["step"] == "tag":
             user_data["tag"] = msg
-            db_set(f"user_{user_id}", user_data)
-            await update.message.reply_text("Amazon tag saved.")
-        elif step == "channel":
-            user_data = db_get(f"user_{user_id}") or {}
+            await update.message.reply_text("Tag saved.")
+        elif step["step"] == "channel":
             user_data["channel_id"] = msg
-            db_set(f"user_{user_id}", user_data)
-            await update.message.reply_text("Channel ID saved.")
-        elif step == "token":
-            user_data = db_get(f"user_{user_id}") or {}
+            await update.message.reply_text("Channel saved.")
+        elif step["step"] == "token":
             user_data["bot_token"] = msg
-            db_set(f"user_{user_id}", user_data)
-            await update.message.reply_text("Bot token saved.\nSetup complete!")
+            await update.message.reply_text("Token saved. Setup complete!")
             user_data["setup_done"] = True
-            db_set(f"user_{user_id}", user_data)
-        db_set(f"user_{user_id}_step", {})  # clear step
+        db_set(f"user_{uid}", user_data)
+        db_set(f"user_{uid}_step", {})
         return
-    
-    # Process Amazon link
+
     if "amazon" in msg.lower():
-        user_data = db_get(f"user_{user_id}")
+        user_data = db_get(f"user_{uid}")
         if not user_data or "tag" not in user_data:
-            await update.message.reply_text("Please complete setup first.")
+            await update.message.reply_text("Setup first.")
             return
-        # Replace tag and shorten
-        modified_link = msg.split("?")[0] + f"?tag={user_data['tag']}"
-        short_link = requests.get(API_URL + modified_link).text.strip()
-        await update.message.reply_text(short_link)
+        link = msg.split("?")[0] + f"?tag={user_data['tag']}"
+        short = requests.get(API_URL + link).text.strip()
+        await update.message.reply_text(short)
         if "channel_id" in user_data:
-            await context.bot.send_message(chat_id=user_data["channel_id"], text=short_link)
+            await context.bot.send_message(user_data["channel_id"], short)
 
 if __name__ == "__main__":
     app = ApplicationBuilder().token(BOT_TOKEN).build()
-
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("add", add_user))
+    app.add_handler(CommandHandler("add", add))
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_handler))
-
     app.run_polling()
