@@ -4,9 +4,9 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
 
 # ---------------- CONFIG ----------------
-BOT_TOKEN = "YOUR_BOT_TOKEN_HERE"
-OWNER_ID = 123456789  # your Telegram ID
-FORCE_CHANNEL = "@AdvanceRobots"   # leave "" if you don’t want force join
+BOT_TOKEN = "8416104849:AAGWdUamBT4n2G3vMHjLwWD_NRZjbfC1OKA"
+OWNER_ID = 7588665244  # your Telegram ID
+FORCE_CHANNEL = ""   # leave "" if you don’t want force join
 
 
 # ---------------- YT-DLP ----------------
