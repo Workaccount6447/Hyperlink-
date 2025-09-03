@@ -4,28 +4,49 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
 
 # ---------------- CONFIG ----------------
-BOT_TOKEN = "8416104849:AAGWdUamBT4n2G3vMHjLwWD_NRZjbfC1OKA"
-OWNER_ID = 7588665244  # your Telegram ID
+BOT_TOKEN = "8416104849:AAEV2neML_bs7L47zuymWHnnv6zWBsbtEd8"
+OWNER_ID = 7588665244  # replace with your Telegram ID
 FORCE_CHANNEL = ""   # leave "" if you don’t want force join
 
 
 # ---------------- YT-DLP ----------------
 def download_song(song_name):
-    search_query = f"ytsearch1:{song_name}"
-    ydl_opts = {
-        "format": "bestaudio/best",
-        "outtmpl": "%(title)s.%(ext)s",
-        "postprocessors": [{
-            "key": "FFmpegExtractAudio",
-            "preferredcodec": "mp3",
-            "preferredquality": "192",
-        }],
-        "quiet": True,
-    }
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(search_query, download=True)
-        filename = ydl.prepare_filename(info).rsplit(".", 1)[0] + ".mp3"
-    return filename, info
+    # Try multiple search patterns & sources
+    search_patterns = [
+        f"ytsearch1:{song_name}",       # normal YouTube
+        f"ytsearchdate1:{song_name}",   # YouTube sorted by date
+        f"ytsearchall:{song_name}",     # broader YouTube search
+        f"scsearch1:{song_name}",       # SoundCloud
+        f"saavnsearch:{song_name}",     # JioSaavn
+    ]
+
+    last_error = None
+    for query in search_patterns:
+        try:
+            ydl_opts = {
+                "format": "bestaudio/best",
+                "outtmpl": "%(title)s.%(ext)s",
+                "extractor_args": {
+                    "youtube": {"player_client": ["android"]}  # ✅ Use Android client bypass
+                },
+                "postprocessors": [{
+                    "key": "FFmpegExtractAudio",
+                    "preferredcodec": "mp3",
+                    "preferredquality": "192",
+                }],
+                "quiet": True,
+            }
+
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(query, download=True)
+                filename = ydl.prepare_filename(info).rsplit(".", 1)[0] + ".mp3"
+                return filename, info
+
+        except Exception as e:
+            last_error = e
+            continue
+
+    raise Exception(f"All sources failed. Last error: {last_error}")
 
 
 # ---------------- HELPERS ----------------
@@ -89,7 +110,8 @@ async def handle_song(update: Update, context: ContextTypes.DEFAULT_TYPE):
         caption = (
             f"🎶 Title: {info.get('title', 'Unknown')}\n"
             f"👁 Views: {info.get('view_count', 0)}\n"
-            f"⏱ Duration: {int(info.get('duration', 0) // 60)}:{int(info.get('duration', 0) % 60):02d}"
+            f"⏱ Duration: {int(info.get('duration', 0) // 60)}:"
+            f"{int(info.get('duration', 0) % 60):02d}"
         )
 
         await update.message.reply_audio(audio=open(file_path, "rb"), caption=caption)
@@ -103,7 +125,7 @@ async def handle_song(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # You can either keep the file locally (help_video.mp4) or use a direct URL
-    video_path = "help_video.mp4"   # replace with your file name or direct link
+    video_path = "help_video.mp4"   # replace with your file or direct link
     await update.message.reply_video(video=video_path, caption="📹 Here’s how to use me!")
 
 
