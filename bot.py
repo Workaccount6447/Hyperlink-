@@ -1,145 +1,165 @@
 import os
+from telegram import Update, ParseMode
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 import yt_dlp
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
 
-# ---------------- CONFIG ----------------
-BOT_TOKEN = "8416104849:AAEV2neML_bs7L47zuymWHnnv6zWBsbtEd8"
-OWNER_ID = 7588665244  # replace with your Telegram ID
-FORCE_CHANNEL = ""   # leave "" if you don’t want force join
+# --- CONFIG ---
+BOT_TOKEN = os.getenv("BOT_TOKEN")  # from Render environment variable
+OWNER_ID = int(os.getenv("OWNER_ID", "123456789"))  # your Telegram ID
+FORCE_CHANNEL = os.getenv("FORCE_CHANNEL", "")      # leave empty "" if not required
+DB_GROUP_ID = int(os.getenv("DB_GROUP_ID", "-1001234567890"))
 
+os.makedirs("downloads", exist_ok=True)
 
-# ---------------- YT-DLP ----------------
-def download_song(song_name):
-    # Try multiple search patterns & sources
-    search_patterns = [
-        f"ytsearch1:{song_name}",       # normal YouTube
-        f"ytsearchdate1:{song_name}",   # YouTube sorted by date
-        f"ytsearchall:{song_name}",     # broader YouTube search
-        f"scsearch1:{song_name}",       # SoundCloud
-        f"saavnsearch:{song_name}",     # JioSaavn
-    ]
+# --- Download audio ---
+def download_audio(query):
+    ydl_opts = {
+        'format': 'bestaudio/best',
+        'outtmpl': 'downloads/%(title)s.%(ext)s',
+        'postprocessors': [{
+            'key': 'FFmpegExtractAudio',
+            'preferredcodec': 'mp3',
+            'preferredquality': '192',
+        }],
+        'quiet': True,
+    }
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info(f"ytsearch:{query}", download=True)
+        filename = ydl.prepare_filename(info['entries'][0])
+        mp3_file = os.path.splitext(filename)[0] + ".mp3"
+        duration = str(info['entries'][0].get("duration", "Unknown")) + " sec"
+        return mp3_file, info['entries'][0]['title'], duration
 
-    last_error = None
-    for query in search_patterns:
-        try:
-            ydl_opts = {
-                "format": "bestaudio/best",
-                "outtmpl": "%(title)s.%(ext)s",
-                "extractor_args": {
-                    "youtube": {"player_client": ["android"]}  # ✅ Use Android client bypass
-                },
-                "postprocessors": [{
-                    "key": "FFmpegExtractAudio",
-                    "preferredcodec": "mp3",
-                    "preferredquality": "192",
-                }],
-                "quiet": True,
-            }
-
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(query, download=True)
-                filename = ydl.prepare_filename(info).rsplit(".", 1)[0] + ".mp3"
-                return filename, info
-
-        except Exception as e:
-            last_error = e
-            continue
-
-    raise Exception(f"All sources failed. Last error: {last_error}")
-
-
-# ---------------- HELPERS ----------------
-async def check_force_join(update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
-    """Check if user is a member of FORCE_CHANNEL."""
+# --- Force channel check ---
+def is_subscribed(bot, user_id):
     if not FORCE_CHANNEL:
         return True
-
     try:
-        member = await context.bot.get_chat_member(FORCE_CHANNEL, update.effective_user.id)
-        if member.status in ["left", "kicked"]:
-            raise Exception("Not joined")
-    except Exception:
-        # Send join button
-        button = InlineKeyboardButton("🔗 Join Channel", url=f"https://t.me/{FORCE_CHANNEL.replace('@','')}")
-        markup = InlineKeyboardMarkup([[button]])
-        await update.message.reply_text(
-            "🚨 To use me, you must join our update channel first!",
-            reply_markup=markup
-        )
+        member = bot.get_chat_member(FORCE_CHANNEL, user_id)
+        return member.status in ["member", "administrator", "creator"]
+    except:
         return False
 
-    return True
-
-
-# ---------------- HANDLERS ----------------
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not await check_force_join(update, context):
-        return
-
+# --- Start ---
+def start(update: Update, context: CallbackContext):
     user = update.effective_user
-    name = user.first_name
+    first_name = user.first_name
 
-    buttons = [
-        [InlineKeyboardButton("🔥 Deals Channel", url="https://t.me/dealsduniyalimited")],
-        [InlineKeyboardButton("🚀 Update Channel", url="https://t.me/AdvanceRobots")]
-    ]
-    reply_markup = InlineKeyboardMarkup(buttons)
-
-    text = (
-        f"Hello 👋 {name}\n\n"
-        "I'm a Music 🎶 Downloader Bot\n\n"
-        "Send me a name of a song and I'll send you the song in the highest quality.\n\n"
-        "Enjoy your song ❤️\n"
-        "Made with love by @AdvanceRobots"
-    )
-
-    await update.message.reply_text(text, reply_markup=reply_markup)
-
-
-async def handle_song(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not await check_force_join(update, context):
+    if FORCE_CHANNEL and not is_subscribed(context.bot, user.id):
+        update.message.reply_text(
+            f"🚨 To use this bot, please join our channel first:\n{FORCE_CHANNEL}"
+        )
         return
 
-    song_name = update.message.text
-    status = await update.message.reply_text("🎉 Downloading...")
+    # Log user to DB group
+    try:
+        context.bot.send_message(DB_GROUP_ID, f"New user: `{user.id}`", parse_mode="Markdown")
+    except:
+        pass
+
+    start_message = f"""
+🔥 Welcome to Music Bot, {first_name}! 🔥  
+
+🎶 Unlimited music downloads,  
+⚡ Super-fast & free,  
+❤️ Always available for you.  
+
+Just send a song name or I will directly send your favourite song to you within seconds.  
+
+🥰 Made with love by Hanuman
+"""
+    update.message.reply_text(start_message)
+
+# --- Handle requests ---
+def handle_message(update: Update, context: CallbackContext):
+    user = update.effective_user
+
+    if FORCE_CHANNEL and not is_subscribed(context.bot, user.id):
+        update.message.reply_text(
+            f"🚨 To use this bot, please join our channel first:\n{FORCE_CHANNEL}"
+        )
+        return
+
+    query = update.message.text
+    msg = update.message.reply_text("⏳ Searching and downloading...")
 
     try:
-        file_path, info = download_song(song_name)
+        file_path, title, duration = download_audio(query)
 
-        caption = (
-            f"🎶 Title: {info.get('title', 'Unknown')}\n"
-            f"👁 Views: {info.get('view_count', 0)}\n"
-            f"⏱ Duration: {int(info.get('duration', 0) // 60)}:"
-            f"{int(info.get('duration', 0) % 60):02d}"
+        # Send audio
+        context.bot.send_audio(
+            chat_id=update.effective_chat.id,
+            audio=open(file_path, 'rb'),
+            title=title
+        )
+        os.remove(file_path)
+
+        # Custom message
+        if update.effective_chat.type == "private":
+            message_text = f"""
+━━━━━━━━━━━━━━━━━━
+🎵 Title : {title} 
+⏱ Duration : {duration}
+━━━━━━━━━━━━━━━━━━━
+
+🥰 Made with love by Hanuman
+
+Enjoy !!❤️
+"""
+        else:
+            user_mention = update.effective_user.mention_html()
+            message_text = f"""
+━━━━━━━━━━━━━━━━━━
+🎵 Title : {title}
+⏱ Duration : {duration}
+
+💥Downloaded by {user_mention}
+━━━━━━━━━━━━━━━━━━━
+🥰 Made with love by Hanuman
+
+Enjoy !!❤️
+"""
+        context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text=message_text,
+            parse_mode=ParseMode.HTML
         )
 
-        await update.message.reply_audio(audio=open(file_path, "rb"), caption=caption)
-
-        os.remove(file_path)  # delete file after sending
-        await status.edit_text("✅ Song sent successfully!")
-
     except Exception as e:
-        await status.edit_text(f"❌ Error: {e}")
+        msg.edit_text(f"❌ Error: {str(e)}")
+    else:
+        msg.delete()
 
+# --- Broadcast ---
+def broadcast(update: Update, context: CallbackContext):
+    if update.effective_user.id != OWNER_ID:
+        update.message.reply_text("❌ You are not allowed to use this command.")
+        return
 
-async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # You can either keep the file locally (help_video.mp4) or use a direct URL
-    video_path = "help_video.mp4"   # replace with your file or direct link
-    await update.message.reply_video(video=video_path, caption="📹 Here’s how to use me!")
+    if not context.args:
+        update.message.reply_text("⚠️ Usage: /broadcast <message>")
+        return
 
+    text = " ".join(context.args)
 
-# ---------------- MAIN ----------------
-def main():
-    app = Application.builder().token(BOT_TOKEN).build()
+    # Send broadcast to DB group users
+    try:
+        history = context.bot.get_chat(DB_GROUP_ID)  # log group info
+        context.bot.send_message(DB_GROUP_ID, f"📢 Owner broadcast started:\n{text}")
+    except:
+        update.message.reply_text("⚠️ Cannot access DB group.")
+        return
 
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("help", help_cmd))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_song))
+    update.message.reply_text("✅ Broadcast command acknowledged (DB group will have logs).")
 
-    print("✅ Bot is running…")
-    app.run_polling()
-
-
+# --- Main ---
 if __name__ == "__main__":
-    main()
+    updater = Updater(BOT_TOKEN, use_context=True)
+    dp = updater.dispatcher
+
+    dp.add_handler(CommandHandler("start", start))
+    dp.add_handler(CommandHandler("broadcast", broadcast))
+    dp.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_message))
+
+    updater.start_polling()
+    updater.idle()
