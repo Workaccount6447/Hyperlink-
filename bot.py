@@ -29,6 +29,7 @@ translator = Translator()
 
 # ================= DATABASE =================
 def get_conn():
+    # Render Internal URLs usually work best with sslmode=require
     return psycopg2.connect(DATABASE_URL, sslmode="require")
 
 def add_user(uid, name=None):
@@ -98,7 +99,7 @@ def owner_only(uid):
     return uid == OWNER_ID
 
 def cleanup(path):
-    if os.path.exists(path):
+    if path and os.path.exists(path):
         os.remove(path)
 
 def generate_qr(text):
@@ -143,22 +144,28 @@ async def ytdlp_download(update: Update, context: ContextTypes.DEFAULT_TYPE, url
         return await update.message.reply_text("❌ No URL provided")
     if not url:
         url = context.args[0]
+    
+    file = None
     out_path = os.path.join(TMP, "%(title)s.%(ext)s")
     opts = {"outtmpl": out_path}
     if audio:
         opts.update({"format":"bestaudio","postprocessors":[{"key":"FFmpegExtractAudio","preferredcodec":"mp3"}]})
+    
     try:
         with yt_dlp.YoutubeDL(opts) as ydl:
-            ydl.download([url])
-            info = yt_dlp.YoutubeDL({}).extract_info(url, download=False)
-            file = yt_dlp.YoutubeDL(opts).prepare_filename(info)
-            await update.message.reply_document(open(file, "rb"))
+            info = ydl.extract_info(url, download=True)
+            file = ydl.prepare_filename(info)
+            if audio: # Handle filename change after mp3 conversion
+                file = os.path.splitext(file)[0] + ".mp3"
+            
+            with open(file, "rb") as f:
+                await update.message.reply_document(f)
     except Exception as e:
         await update.message.reply_text(f"❌ Download failed: {e}")
     finally:
-        cleanup(file)
+        if file:
+            cleanup(file)
 
-# Short command wrappers
 async def yt(update, context): await ytdlp_download(update, context)
 async def ytc(update, context): await ytdlp_download(update, context)
 async def mp3(update, context): await ytdlp_download(update, context, audio=True)
@@ -174,7 +181,8 @@ async def qr_cmd(update, context):
     if not context.args:
         return await update.message.reply_text("❌ No text provided")
     path = generate_qr(" ".join(context.args))
-    await update.message.reply_photo(open(path,"rb"))
+    with open(path, "rb") as f:
+        await update.message.reply_photo(f)
     cleanup(path)
 
 async def math_cmd(update, context):
@@ -255,8 +263,15 @@ app = Flask(__name__)
 def home():
     return "Bot is alive"
 
-# ================= RUN BOT =================
-def run_bot():
+def run_flask():
+    app.run(host="0.0.0.0", port=5000)
+
+# ================= MAIN =================
+if __name__ == "__main__":
+    # Start Flask in a background thread
+    threading.Thread(target=run_flask, daemon=True).start()
+
+    # Initialize Bot in the MAIN thread
     app_bot = ApplicationBuilder().token(BOT_TOKEN).build()
     
     handlers = [
@@ -286,10 +301,7 @@ def run_bot():
     for h in handlers:
         app_bot.add_handler(h)
     
-    print("Bot running...")
-    app_bot.run_polling()
-
-# ================= MAIN =================
-if __name__ == "__main__":
-    threading.Thread(target=run_bot).start()
-    app.run(host="0.0.0.0", port=5000)
+    print("Bot starting in main thread...")
+    # Critical: stop_signals=None allows it to run alongside Flask/Render
+    app_bot.run_polling(stop_signals=None)
+    
