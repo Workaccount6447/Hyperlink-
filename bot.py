@@ -156,7 +156,8 @@ async def ytdlp_download(update: Update, context: ContextTypes.DEFAULT_TYPE, url
     except Exception as e:
         await update.message.reply_text(f"❌ Download failed: {e}")
     finally:
-        cleanup(file)
+        if 'file' in locals():
+            cleanup(file)
 
 # Short command wrappers
 async def yt(update, context): await ytdlp_download(update, context)
@@ -287,9 +288,11 @@ def run_bot():
         app_bot.add_handler(h)
     
     print("Bot running...")
-    app_bot.run_polling()
+    # FIXED: Added stop_signals=None for background thread compatibility on Render
+    app_bot.run_polling(stop_signals=None)
 
 # ================= MAIN =================
 if __name__ == "__main__":
     threading.Thread(target=run_bot).start()
     app.run(host="0.0.0.0", port=5000)
+    
