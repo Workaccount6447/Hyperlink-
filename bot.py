@@ -92,10 +92,6 @@ async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 /unzip <file> - Unzip
 /bg <file> - Remove background
 /time <country> - Show time
-/broadcast <msg> - Owner only
-/ban <id> - Owner only
-/unban <id> - Owner only
-/stats - Owner only
 """
     await update.message.reply_text(cmds)
 
@@ -266,7 +262,14 @@ def run_bot():
     for h in handlers: app_bot.add_handler(h)
     print("Bot running...")
     app_bot.run_polling()
+    
+from flask import Flask
 
-if __name__=="__main__":
-    threading.Thread(target=run_bot).start()
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT",5000)))
+app = Flask(__name__)
+
+@app.route("/")
+def home():
+    return "Bot is alive"
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000)
