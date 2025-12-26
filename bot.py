@@ -227,8 +227,7 @@ async def stats(update, context):
     if not owner_only(uid): return await update.message.reply_text("❌ Owner only.")
     await update.message.reply_text(f"✅ Total users: {count_users()}\n❌ Banned: {count_banned()}")
 
-# ================= FLASK & BOT =================
-app = Flask(__name__); @app.route("/"); def home(): return "Bot is alive"
+# ================= FLASK & BOT =======);
 
 def run_bot():
     app_bot = ApplicationBuilder().token(BOT_TOKEN).build()
