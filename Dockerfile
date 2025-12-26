@@ -1,4 +1,3 @@
-# Use slim Python image to reduce size
 FROM python:3.12-slim
 
 # Set working directory
@@ -9,7 +8,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     wget \
     unzip \
-    libpq-dev \
     libjpeg-dev \
     zlib1g-dev \
     build-essential \
@@ -18,9 +16,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy bot code
 COPY . /app
 
-# Upgrade pip and install only Python dependencies
-RUN pip install --upgrade pip
-RUN pip install -r requirements.txt
+# Upgrade pip and install Python dependencies
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
 # Expose port for Flask
 EXPOSE 5000
