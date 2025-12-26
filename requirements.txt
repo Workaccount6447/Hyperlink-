@@ -1,6 +1,6 @@
 python-telegram-bot==20.4
 Flask==2.3.3
-yt-dlp==2025.12.19
+yt-dlp
 Pillow==10.0.1
 qrcode==7.4.2
 psycopg2-binary==2.9.9
