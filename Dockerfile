@@ -1,26 +1,21 @@
-# Use official lightweight Python image
-FROM python:3.11-slim
+# Use official Python slim image
+FROM python:3.12-slim
 
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies (ffmpeg for audio processing, curl for health checks)
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    ffmpeg \
-    curl \
- && rm -rf /var/lib/apt/lists/*
+# Install system dependencies (FFmpeg, wget, unzip)
+RUN apt-get update && apt-get install -y ffmpeg wget unzip && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first (for caching layers)
-COPY requirements.txt .
+# Copy bot files
+COPY . /app
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy bot source code
-COPY . .
+# Upgrade pip and install Python dependencies
+RUN pip install --upgrade pip
+RUN pip install -r requirements.txt
 
 # Expose port for Flask
-EXPOSE 8080
+EXPOSE 5000
 
-# Run the bot
-CMD ["python", "app.py"]
+# Start bot
+CMD ["python", "bot.py"]
