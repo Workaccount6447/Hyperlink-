@@ -1,11 +1,12 @@
+pymongo[srv]
+dnspython
 python-telegram-bot
-Flask
-pymongo
-pillow
-qrcode
+flask
 yt-dlp
+qrcode
+pillow
 sympy
-googletrans
+googletrans==4.0.0-rc1
 PyPDF2
 python-docx
 pytz
