@@ -8,98 +8,68 @@ from PIL import Image
 import qrcode
 import yt_dlp
 from flask import Flask
-from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
-import psycopg2
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, CallbackQueryHandler
 from sympy import sympify
 from googletrans import Translator
 from PyPDF2 import PdfReader, PdfWriter
 from docx import Document
 import pytz
+from pymongo import MongoClient
 
 # ================= CONFIG =================
+
 BOT_TOKEN = "8569119575:AAFts4CJWhVfdL0lKk_RUllaU8_rHo1HLWA"
 OWNER_ID = 8420494874
 TMP = "/tmp"
-DATABASE_URL = os.environ.get(
-    "DATABASE_URL",
-    "postgresql://royality_database_user:qPWcamj4vaMZx0UMN12RnBuDlMx3GiFK@dpg-d571nq0gjchc739ap3ag-a/royality_database"
-)
+MONGO_URL = os.environ.get("MONGO_URL", "mongodb+srv://Cahnnel:Xu52ciUXinailOAX@cluster0.02ez6dm.mongodb.net/?appName=Cluster0")
 translator = Translator()
+BOT_NAME = "royalitybot"  # for About Me inline info
+UPDATES_CHANNEL = "https://t.me/RoyalityBots"
 
 # ================= DATABASE =================
-def get_conn():
-    # Render Internal URLs usually work best with sslmode=require
-    return psycopg2.connect(DATABASE_URL, sslmode="require")
+
+client = MongoClient(MONGO_URL)
+db = client["royality_bot"]
+users_col = db["users"]
+banned_col = db["banned"]
 
 def add_user(uid, name=None):
-    conn = get_conn()
-    cur = conn.cursor()
-    cur.execute("CREATE TABLE IF NOT EXISTS users(uid BIGINT PRIMARY KEY, name TEXT)")
-    cur.execute("INSERT INTO users(uid,name) VALUES(%s,%s) ON CONFLICT(uid) DO NOTHING",(uid,name))
-    conn.commit()
-    cur.close()
-    conn.close()
+    users_col.update_one(
+        {"uid": uid},
+        {"$setOnInsert": {"uid": uid, "name": name}},
+        upsert=True
+    )
 
 def ban_user(uid):
-    conn = get_conn()
-    cur = conn.cursor()
-    cur.execute("CREATE TABLE IF NOT EXISTS banned(uid BIGINT PRIMARY KEY)")
-    cur.execute("INSERT INTO banned(uid) VALUES(%s) ON CONFLICT(uid) DO NOTHING",(uid,))
-    conn.commit()
-    cur.close()
-    conn.close()
+    banned_col.update_one(
+        {"uid": uid},
+        {"$setOnInsert": {"uid": uid}},
+        upsert=True
+    )
 
 def unban_user(uid):
-    conn = get_conn()
-    cur = conn.cursor()
-    cur.execute("DELETE FROM banned WHERE uid=%s",(uid,))
-    conn.commit()
-    cur.close()
-    conn.close()
+    banned_col.delete_one({"uid": uid})
 
 def is_banned(uid):
-    conn = get_conn()
-    cur = conn.cursor()
-    cur.execute("SELECT uid FROM banned WHERE uid=%s",(uid,))
-    res = cur.fetchone()
-    cur.close()
-    conn.close()
-    return res is not None
+    return banned_col.find_one({"uid": uid}) is not None
 
 def get_all_users():
-    conn = get_conn()
-    cur = conn.cursor()
-    cur.execute("SELECT uid FROM users")
-    res = cur.fetchall()
-    cur.close()
-    conn.close()
-    return [r[0] for r in res]
+    return [u["uid"] for u in users_col.find({}, {"uid": 1})]
 
 def count_users():
-    conn = get_conn()
-    cur = conn.cursor()
-    cur.execute("SELECT COUNT(*) FROM users")
-    res = cur.fetchone()[0]
-    cur.close()
-    conn.close()
-    return res
+    return users_col.count_documents({})
 
 def count_banned():
-    conn = get_conn()
-    cur = conn.cursor()
-    cur.execute("SELECT COUNT(*) FROM banned")
-    res = cur.fetchone()[0]
-    cur.close()
-    conn.close()
-    return res
+    return banned_col.count_documents({})
 
 # ================= HELPERS =================
+
 def owner_only(uid):
     return uid == OWNER_ID
 
 def cleanup(path):
-    if path and os.path.exists(path):
+    if os.path.exists(path):
         os.remove(path)
 
 def generate_qr(text):
@@ -109,13 +79,34 @@ def generate_qr(text):
     return path
 
 # ================= TELEGRAM COMMANDS =================
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
-    add_user(uid, update.effective_user.first_name)
-    await update.message.reply_text("✅ Bot is alive. Use /help to see commands.")
+    name = update.effective_user.first_name
+    add_user(uid, name)
+    
+    welcome_text = f"""Welcome , {name}
 
-async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    cmds = """
+𝖨 𝖼𝖺𝗇 𝖺𝗎𝗍𝗈𝗆𝖺𝗍𝗂𝖼𝖺𝗅𝗅𝗒 𝖺𝗉𝗉𝗋𝗈𝗏𝖾 𝗇𝖾𝗐 𝖺𝗌 𝗐𝖾𝗅𝗅 𝖺𝗌 𝗉𝖾𝗇𝖽𝗂𝗇𝗀 𝗃𝗈𝗂𝗇 𝗋𝖾𝗊𝗎𝖾𝗌𝗍 𝗂𝗇 𝗒𝗈𝗎𝗋 𝖼𝗁𝖺𝗇𝗇𝖾𝗅𝗌 𝗈𝗋 𝗀𝗋𝗈𝗎𝗉𝗌.
+
+𝖩𝗎𝗌𝗍 𝖺𝖽𝖽 𝗆𝖾 𝗂𝗇 𝗒𝗈𝗎𝗋 𝖼𝗁𝖺𝗇𝗇𝖾𝗅𝗌 𝖺𝗇𝖽 𝗀𝗋𝗈𝗎𝗉𝗌 𝗐𝗂𝗍𝗁 𝗉𝖾𝗋𝗆𝗂𝗌𝗌𝗂𝗈𝗇 𝗍𝗈 𝖺𝖽𝖽 𝗇𝖾𝗐 𝗆𝖾𝗆𝖻𝖾𝗋𝗌.
+
+‣ ᴍᴀɪɴᴛᴀɪɴᴇᴅ ʙʏ : [RoyalityBots]({UPDATES_CHANNEL})
+"""
+    keyboard = [
+        [InlineKeyboardButton("Help Menu", callback_data="help")],
+        [InlineKeyboardButton("About Me / Updates Channel", url=UPDATES_CHANNEL)]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    await update.message.reply_text(welcome_text, reply_markup=reply_markup, parse_mode="Markdown")
+
+async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    
+    if query.data == "help":
+        cmds = """
 /yt <url> - Download YouTube video
 /ytc <url> - Download YouTube clip
 /mp3 <url> - Download audio from YouTube
@@ -136,36 +127,34 @@ async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 /unzip <file> - Unzip
 /time <country> - Show time
 """
-    await update.message.reply_text(cmds)
+        await query.edit_message_text(cmds)
+
+async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await start(update, context)  # reuse start for welcome & buttons
 
 # ================= YT-DLP DOWNLOAD =================
+
 async def ytdlp_download(update: Update, context: ContextTypes.DEFAULT_TYPE, url=None, audio=False):
     if not url and not context.args:
         return await update.message.reply_text("❌ No URL provided")
     if not url:
         url = context.args[0]
-    
-    file = None
     out_path = os.path.join(TMP, "%(title)s.%(ext)s")
     opts = {"outtmpl": out_path}
     if audio:
         opts.update({"format":"bestaudio","postprocessors":[{"key":"FFmpegExtractAudio","preferredcodec":"mp3"}]})
-    
     try:
         with yt_dlp.YoutubeDL(opts) as ydl:
-            info = ydl.extract_info(url, download=True)
-            file = ydl.prepare_filename(info)
-            if audio: # Handle filename change after mp3 conversion
-                file = os.path.splitext(file)[0] + ".mp3"
-            
-            with open(file, "rb") as f:
-                await update.message.reply_document(f)
+            ydl.download([url])
+        info = yt_dlp.YoutubeDL({}).extract_info(url, download=False)
+        file = yt_dlp.YoutubeDL(opts).prepare_filename(info)
+        await update.message.reply_document(open(file, "rb"))
     except Exception as e:
         await update.message.reply_text(f"❌ Download failed: {e}")
     finally:
-        if file:
-            cleanup(file)
+        cleanup(file)
 
+# Short command wrappers
 async def yt(update, context): await ytdlp_download(update, context)
 async def ytc(update, context): await ytdlp_download(update, context)
 async def mp3(update, context): await ytdlp_download(update, context, audio=True)
@@ -181,8 +170,7 @@ async def qr_cmd(update, context):
     if not context.args:
         return await update.message.reply_text("❌ No text provided")
     path = generate_qr(" ".join(context.args))
-    with open(path, "rb") as f:
-        await update.message.reply_photo(f)
+    await update.message.reply_photo(open(path,"rb"))
     cleanup(path)
 
 async def math_cmd(update, context):
@@ -220,6 +208,7 @@ async def time_cmd(update, context):
         await update.message.reply_text("❌ Invalid timezone")
 
 # ================= OWNER COMMANDS =================
+
 async def broadcast(update, context):
     if not owner_only(update.effective_user.id):
         return await update.message.reply_text("❌ Owner only.")
@@ -257,24 +246,19 @@ async def stats(update, context):
     await update.message.reply_text(f"✅ Total users: {count_users()}\n❌ Banned: {count_banned()}")
 
 # ================= FLASK =================
+
 app = Flask(__name__)
 
 @app.route("/")
 def home():
     return "Bot is alive"
 
-def run_flask():
-    app.run(host="0.0.0.0", port=5000)
+# ================= RUN BOT =================
 
-# ================= MAIN =================
-if __name__ == "__main__":
-    # Start Flask in a background thread
-    threading.Thread(target=run_flask, daemon=True).start()
-
-    # Initialize Bot in the MAIN thread
+def run_bot():
     app_bot = ApplicationBuilder().token(BOT_TOKEN).build()
-    
-    handlers = [
+
+    handlers = [  
         CommandHandler("start", start),
         CommandHandler("help", help_cmd),
         CommandHandler("yt", yt),
@@ -296,12 +280,17 @@ if __name__ == "__main__":
         CommandHandler("ban", ban),
         CommandHandler("unban", unban),
         CommandHandler("stats", stats),
-    ]
+        CallbackQueryHandler(button_callback),
+    ]  
     
-    for h in handlers:
-        app_bot.add_handler(h)
+    for h in handlers:  
+        app_bot.add_handler(h)  
     
-    print("Bot starting in main thread...")
-    # Critical: stop_signals=None allows it to run alongside Flask/Render
-    app_bot.run_polling(stop_signals=None)
-    
+    print("Bot running...")  
+    app_bot.run_polling()
+
+# ================= MAIN =================
+
+if __name__ == "__main__":
+    threading.Thread(target=run_bot).start()
+    app.run(host="0.0.0.0", port=5000)
