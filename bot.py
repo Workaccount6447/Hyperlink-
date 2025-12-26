@@ -3,6 +3,7 @@ import threading
 import uuid
 import zipfile
 import shutil
+import urllib.parse
 from datetime import datetime
 from PIL import Image
 import qrcode
@@ -22,31 +23,34 @@ from pymongo import MongoClient
 BOT_TOKEN = "8569119575:AAFts4CJWhVfdL0lKk_RUllaU8_rHo1HLWA"
 OWNER_ID = 8420494874
 TMP = "/tmp"
-MONGO_URL = os.environ.get("MONGO_URL", "mongodb+srv://Cahnnel:Xu52ciUXinailOAX@cluster0.02ez6dm.mongodb.net/?appName=Cluster0")
+# Hardcoded URI with stability parameters for Render
+MONGO_URL = "mongodb+srv://Cahnnel:Xu52ciUXinailOAX@cluster0.02ez6dm.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
+
 translator = Translator()
-BOT_NAME = "royalitybot"  # for About Me inline info
 UPDATES_CHANNEL = "https://t.me/RoyalityBots"
 
 # ================= DATABASE =================
 
-client = MongoClient(MONGO_URL)
+# Added connection fixes for DNS resolution errors
+client = MongoClient(
+    MONGO_URL,
+    tlsAllowInvalidCertificates=True,
+    connectTimeoutMS=30000,
+    socketTimeoutMS=None,
+    connect=False
+)
+
 db = client["royality_bot"]
 users_col = db["users"]
 banned_col = db["banned"]
 
 def add_user(uid, name=None):
-    users_col.update_one(
-        {"uid": uid},
-        {"$setOnInsert": {"uid": uid, "name": name}},
-        upsert=True
-    )
+    try:
+        users_col.update_one({"uid": uid}, {"$set": {"uid": uid, "name": name}}, upsert=True)
+    except: pass
 
 def ban_user(uid):
-    banned_col.update_one(
-        {"uid": uid},
-        {"$setOnInsert": {"uid": uid}},
-        upsert=True
-    )
+    banned_col.update_one({"uid": uid}, {"$set": {"uid": uid}}, upsert=True)
 
 def unban_user(uid):
     banned_col.delete_one({"uid": uid})
@@ -69,8 +73,9 @@ def owner_only(uid):
     return uid == OWNER_ID
 
 def cleanup(path):
-    if os.path.exists(path):
-        os.remove(path)
+    if path and os.path.exists(path):
+        if os.path.isdir(path): shutil.rmtree(path)
+        else: os.remove(path)
 
 def generate_qr(text):
     img = qrcode.make(text)
@@ -82,215 +87,147 @@ def generate_qr(text):
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
+    if is_banned(uid): return
     name = update.effective_user.first_name
     add_user(uid, name)
     
-    welcome_text = f"""Welcome , {name}
-
-𝖨 𝖼𝖺𝗇 𝖺𝗎𝗍𝗈𝗆𝖺𝗍𝗂𝖼𝖺𝗅𝗅𝗒 𝖺𝗉𝗉𝗋𝗈𝗏𝖾 𝗇𝖾𝗐 𝖺𝗌 𝗐𝖾𝗅𝗅 𝖺𝗌 𝗉𝖾𝗇𝖽𝗂𝗇𝗀 𝗃𝗈𝗂𝗇 𝗋𝖾𝗊𝗎𝖾𝗌𝗍 𝗂𝗇 𝗒𝗈𝗎𝗋 𝖼𝗁𝖺𝗇𝗇𝖾𝗅𝗌 𝗈𝗋 𝗀𝗋𝗈𝗎𝗉𝗌.
-
-𝖩𝗎𝗌𝗍 𝖺𝖽𝖽 𝗆𝖾 𝗂𝗇 𝗒𝗈𝗎𝗋 𝖼𝗁𝖺𝗇𝗇𝖾𝗅𝗌 𝖺𝗇𝖽 𝗀𝗋𝗈𝗎𝗉𝗌 𝗐𝗂𝗍𝗁 𝗉𝖾𝗋𝗆𝗂𝗌𝗌𝗂𝗈𝗇 𝗍𝗈 𝖺𝖽𝖽 𝗇𝖾𝗐 𝗆𝖾𝗆𝖻𝖾𝗋𝗌.
-
-‣ ᴍᴀɪɴᴛᴀɪɴᴇᴅ ʙʏ : [RoyalityBots]({UPDATES_CHANNEL})
-"""
+    welcome_text = f"Welcome, {name}\n\nI can automate requests and provide tools.\n\nMaintained by: RoyalityBots"
     keyboard = [
         [InlineKeyboardButton("Help Menu", callback_data="help")],
-        [InlineKeyboardButton("About Me / Updates Channel", url=UPDATES_CHANNEL)]
+        [InlineKeyboardButton("Updates Channel", url=UPDATES_CHANNEL)]
     ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    
-    await update.message.reply_text(welcome_text, reply_markup=reply_markup, parse_mode="Markdown")
+    await update.message.reply_text(welcome_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
 
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    
     if query.data == "help":
         cmds = """
-/yt <url> - Download YouTube video
-/ytc <url> - Download YouTube clip
-/mp3 <url> - Download audio from YouTube
-/fa <url> - Download Facebook video
-/tw <url> - Download Twitter video
-/tk <url> - Download TikTok video
-/tch <url> - Download Twitch video
-/ig <url> - Download Instagram video
-/igp <url> - Download Instagram photo
-/git <url> - Download GitHub repo as zip
-/qr <text> - Generate QR code
-/math <equation> - Solve math
-/id <user/channel> - Get ID
+/yt <url> - YT Video
+/ytc <url> - YT Clip
+/mp3 <url> - YT Audio
+/fa <url> - FB Video
+/tw <url> - Twitter
+/tk <url> - TikTok
+/tch <url> - Twitch
+/ig <url> - Insta Video
+/igp <url> - Insta Photo
+/git <url> - GitHub Zip
+/qr <text> - QR Code
+/math <eq> - Solve Math
+/id - Get ID
 /tr <lang> <text> - Translate
-/pdf <file> - Convert to PDF
-/docx <file> - Convert to DOCX
-/zip <file> - Compress
-/unzip <file> - Unzip
-/time <country> - Show time
+/time <tz> - Current Time
 """
         await query.edit_message_text(cmds)
 
-async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await start(update, context)  # reuse start for welcome & buttons
+# ================= TOOLS =================
 
-# ================= YT-DLP DOWNLOAD =================
-
-async def ytdlp_download(update: Update, context: ContextTypes.DEFAULT_TYPE, url=None, audio=False):
-    if not url and not context.args:
-        return await update.message.reply_text("❌ No URL provided")
-    if not url:
-        url = context.args[0]
-    out_path = os.path.join(TMP, "%(title)s.%(ext)s")
-    opts = {"outtmpl": out_path}
-    if audio:
-        opts.update({"format":"bestaudio","postprocessors":[{"key":"FFmpegExtractAudio","preferredcodec":"mp3"}]})
+async def downloader(update, context, audio=False):
+    if not context.args: return await update.message.reply_text("❌ Send URL")
+    url = context.args[0]
+    m = await update.message.reply_text("⏳ Processing...")
     try:
+        opts = {'outtmpl': f'{TMP}/%(title)s.%(ext)s'}
+        if audio: opts.update({'format': 'bestaudio', 'postprocessors': [{'key': 'FFmpegExtractAudio','preferredcodec': 'mp3'}]})
         with yt_dlp.YoutubeDL(opts) as ydl:
-            ydl.download([url])
-        info = yt_dlp.YoutubeDL({}).extract_info(url, download=False)
-        file = yt_dlp.YoutubeDL(opts).prepare_filename(info)
-        await update.message.reply_document(open(file, "rb"))
-    except Exception as e:
-        await update.message.reply_text(f"❌ Download failed: {e}")
-    finally:
-        cleanup(file)
-
-# Short command wrappers
-async def yt(update, context): await ytdlp_download(update, context)
-async def ytc(update, context): await ytdlp_download(update, context)
-async def mp3(update, context): await ytdlp_download(update, context, audio=True)
-async def fa(update, context): await ytdlp_download(update, context)
-async def tw(update, context): await ytdlp_download(update, context)
-async def tk(update, context): await ytdlp_download(update, context)
-async def tch(update, context): await ytdlp_download(update, context)
-async def ig(update, context): await ytdlp_download(update, context)
-async def igp(update, context): await ytdlp_download(update, context)
-async def git(update, context): await ytdlp_download(update, context)
+            info = ydl.extract_info(url, download=True)
+            path = ydl.prepare_filename(info)
+            if audio: path = path.rsplit('.', 1)[0] + ".mp3"
+            await update.message.reply_document(open(path, 'rb'))
+            cleanup(path)
+    except Exception as e: await update.message.reply_text(f"❌ Error: {e}")
+    finally: await m.delete()
 
 async def qr_cmd(update, context):
-    if not context.args:
-        return await update.message.reply_text("❌ No text provided")
+    if not context.args: return
     path = generate_qr(" ".join(context.args))
-    await update.message.reply_photo(open(path,"rb"))
+    await update.message.reply_photo(open(path, "rb"))
     cleanup(path)
 
 async def math_cmd(update, context):
     try:
-        eq = " ".join(context.args)
-        result = sympify(eq)
-        await update.message.reply_text(f"🧮 {eq} = {result}")
-    except:
-        await update.message.reply_text("❌ Invalid equation")
+        res = sympify(" ".join(context.args))
+        await update.message.reply_text(f"🧮 Result: {res}")
+    except: await update.message.reply_text("❌ Invalid Equation")
 
 async def tr_cmd(update, context):
     try:
-        lang = context.args[0]
-        text = " ".join(context.args[1:])
-        trans = translator.translate(text, dest=lang)
-        await update.message.reply_text(f"🌐 {trans.text}")
-    except:
-        await update.message.reply_text("❌ Invalid usage")
+        dest, text = context.args[0], " ".join(context.args[1:])
+        res = translator.translate(text, dest=dest)
+        await update.message.reply_text(f"🌐 {res.text}")
+    except: await update.message.reply_text("❌ Usage: /tr en Hello")
 
 async def id_cmd(update, context):
-    if context.args:
-        await update.message.reply_text(f"ID: {context.args[0]}")
-    else:
-        await update.message.reply_text(f"Your ID: {update.effective_user.id}")
+    target = context.args[0] if context.args else update.effective_user.id
+    await update.message.reply_text(f"🆔 ID: `{target}`", parse_mode="Markdown")
 
 async def time_cmd(update, context):
-    if not context.args:
-        return await update.message.reply_text("❌ Usage: /time <timezone>")
-    tzname = context.args[0]
     try:
-        tz = pytz.timezone(tzname)
-        t = datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
-        await update.message.reply_text(f"Time in {tzname}: {t}")
-    except:
-        await update.message.reply_text("❌ Invalid timezone")
+        tz = pytz.timezone(context.args[0])
+        now = datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
+        await update.message.reply_text(f"🕒 {context.args[0]}: {now}")
+    except: await update.message.reply_text("❌ Invalid Timezone (e.g. Asia/Kolkata)")
 
 # ================= OWNER COMMANDS =================
 
 async def broadcast(update, context):
-    if not owner_only(update.effective_user.id):
-        return await update.message.reply_text("❌ Owner only.")
+    if not owner_only(update.effective_user.id): return
     msg = " ".join(context.args)
+    count = 0
     for u in get_all_users():
         try:
             await context.bot.send_message(u, msg)
-        except:
-            pass
-    await update.message.reply_text("✅ Broadcast sent.")
+            count += 1
+        except: pass
+    await update.message.reply_text(f"✅ Sent to {count} users.")
 
 async def ban(update, context):
-    if not owner_only(update.effective_user.id):
-        return await update.message.reply_text("❌ Owner only.")
-    try:
-        user_to_ban = int(context.args[0])
-        ban_user(user_to_ban)
-        await update.message.reply_text(f"✅ Banned {user_to_ban}")
-    except:
-        await update.message.reply_text("❌ Invalid user ID")
+    if owner_only(update.effective_user.id):
+        ban_user(int(context.args[0]))
+        await update.message.reply_text("🚫 Banned.")
 
 async def unban(update, context):
-    if not owner_only(update.effective_user.id):
-        return await update.message.reply_text("❌ Owner only.")
-    try:
-        user_to_unban = int(context.args[0])
-        unban_user(user_to_unban)
-        await update.message.reply_text(f"✅ Unbanned {user_to_unban}")
-    except:
-        await update.message.reply_text("❌ Invalid user ID")
+    if owner_only(update.effective_user.id):
+        unban_user(int(context.args[0]))
+        await update.message.reply_text("✅ Unbanned.")
 
 async def stats(update, context):
-    if not owner_only(update.effective_user.id):
-        return await update.message.reply_text("❌ Owner only.")
-    await update.message.reply_text(f"✅ Total users: {count_users()}\n❌ Banned: {count_banned()}")
+    if owner_only(update.effective_user.id):
+        await update.message.reply_text(f"📊 Total: {count_users()}\n🚫 Banned: {count_banned()}")
 
-# ================= FLASK =================
+# ================= RUNNER =================
 
 app = Flask(__name__)
-
-@app.route("/")
-def home():
-    return "Bot is alive"
-
-# ================= RUN BOT =================
+@app.route('/')
+def home(): return "Bot Active"
 
 def run_bot():
-    app_bot = ApplicationBuilder().token(BOT_TOKEN).build()
-
-    handlers = [  
-        CommandHandler("start", start),
-        CommandHandler("help", help_cmd),
-        CommandHandler("yt", yt),
-        CommandHandler("ytc", ytc),
-        CommandHandler("mp3", mp3),
-        CommandHandler("fa", fa),
-        CommandHandler("tw", tw),
-        CommandHandler("tk", tk),
-        CommandHandler("tch", tch),
-        CommandHandler("ig", ig),
-        CommandHandler("igp", igp),
-        CommandHandler("git", git),
-        CommandHandler("qr", qr_cmd),
-        CommandHandler("math", math_cmd),
-        CommandHandler("tr", tr_cmd),
-        CommandHandler("id", id_cmd),
-        CommandHandler("time", time_cmd),
-        CommandHandler("broadcast", broadcast),
-        CommandHandler("ban", ban),
-        CommandHandler("unban", unban),
-        CommandHandler("stats", stats),
-        CallbackQueryHandler(button_callback),
-    ]  
+    bot = ApplicationBuilder().token(BOT_TOKEN).build()
     
-    for h in handlers:  
-        app_bot.add_handler(h)  
+    # Register All Commands
+    cmd_list = [
+        ("start", start), ("help", start), ("qr", qr_cmd), ("math", math_cmd),
+        ("tr", tr_cmd), ("id", id_cmd), ("time", time_cmd), ("stats", stats),
+        ("broadcast", broadcast), ("ban", ban), ("unban", unban),
+        ("yt", lambda u, c: downloader(u, c)),
+        ("ytc", lambda u, c: downloader(u, c)),
+        ("mp3", lambda u, c: downloader(u, c, audio=True)),
+        ("fa", lambda u, c: downloader(u, c)),
+        ("tw", lambda u, c: downloader(u, c)),
+        ("tk", lambda u, c: downloader(u, c)),
+        ("tch", lambda u, c: downloader(u, c)),
+        ("ig", lambda u, c: downloader(u, c)),
+        ("igp", lambda u, c: downloader(u, c)),
+        ("git", lambda u, c: downloader(u, c))
+    ]
     
-    print("Bot running...")  
-    app_bot.run_polling()
-
-# ================= MAIN =================
+    for name, func in cmd_list:
+        bot.add_handler(CommandHandler(name, func))
+    
+    bot.add_handler(CallbackQueryHandler(button_callback))
+    bot.run_polling()
 
 if __name__ == "__main__":
     threading.Thread(target=run_bot).start()
-    app.run(host="0.0.0.0", port=5000)
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
