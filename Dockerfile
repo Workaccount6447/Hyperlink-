@@ -1,25 +1,24 @@
+# Use slim Python image to reduce size
 FROM python:3.12-slim
 
+# Set working directory
 WORKDIR /app
 
-# Install system dependencies for FFmpeg, Pillow, psycopg2, etc.
-RUN apt-get update && apt-get install -y \
+# Install only essential system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     wget \
     unzip \
-    build-essential \
     libpq-dev \
     libjpeg-dev \
     zlib1g-dev \
-    libffi-dev \
-    libssl-dev \
-    python3-dev \
+    build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy bot files
+# Copy bot code
 COPY . /app
 
-# Upgrade pip and install dependencies
+# Upgrade pip and install only Python dependencies
 RUN pip install --upgrade pip
 RUN pip install -r requirements.txt
 
