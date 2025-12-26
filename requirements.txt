@@ -1,10 +1,9 @@
 python-telegram-bot
 Flask
-yt-dlp
-Pillow
+pymongo
+pillow
 qrcode
-psycopg2-binary
-requests
+yt-dlp
 sympy
 googletrans
 PyPDF2
