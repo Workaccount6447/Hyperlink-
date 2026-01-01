@@ -1,198 +1,147 @@
 import os
 import uuid
-from typing import Optional
-
-from fastapi import FastAPI, UploadFile, File, HTTPException
-from fastapi.responses import RedirectResponse, JSONResponse, HTMLResponse
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
 import asyncpg
 import httpx
 
-# =========================
-# Config
-# =========================
+from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 
-MAX_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
-
-APP_BASE_URL = os.getenv("APP_BASE_URL", "")
+# ================= CONFIG =================
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_LOG_CHANNEL_ID = os.getenv("TELEGRAM_LOG_CHANNEL_ID")
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-if not TELEGRAM_BOT_TOKEN:
-    raise RuntimeError("TELEGRAM_BOT_TOKEN missing")
+MAX_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
 
-if not TELEGRAM_LOG_CHANNEL_ID:
-    raise RuntimeError("TELEGRAM_LOG_CHANNEL_ID missing")
+if not all([TELEGRAM_BOT_TOKEN, TELEGRAM_LOG_CHANNEL_ID, DATABASE_URL]):
+    raise RuntimeError("Missing env variables")
 
-if not DATABASE_URL:
-    raise RuntimeError("DATABASE_URL missing")
+# ================= APP =================
 
-# =========================
-# App
-# =========================
-
-app = FastAPI(title="Telegram File Host")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
+app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# =========================
-# Database helpers
-# =========================
-
-async def get_db():
-    return await asyncpg.connect(DATABASE_URL)
+db: asyncpg.Pool | None = None
 
 
-async def save_metadata(file_id, filename, content_type, size, telegram_file_id):
-    conn = await get_db()
-    await conn.execute(
+@app.on_event("startup")
+async def startup():
+    global db
+    db = await asyncpg.create_pool(DATABASE_URL)
+
+
+@app.on_event("shutdown")
+async def shutdown():
+    await db.close()
+
+
+# ================= HELPERS =================
+
+async def send_to_telegram(filename: str, content_type: str, data: bytes) -> str:
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendDocument"
+
+    async with httpx.AsyncClient(timeout=120) as client:
+        r = await client.post(
+            url,
+            data={"chat_id": TELEGRAM_LOG_CHANNEL_ID},
+            files={
+                "document": (
+                    filename,
+                    data,
+                    content_type or "application/octet-stream",
+                )
+            },
+        )
+
+    if r.status_code != 200:
+        raise RuntimeError(r.text)
+
+    return r.json()["result"]["document"]["file_id"]
+
+
+async def save_metadata(file_id, filename, content_type, size, tg_file_id):
+    await db.execute(
         """
-        INSERT INTO files (id, filename, content_type, size, telegram_file_id)
+        INSERT INTO files (file_id, filename, content_type, size, telegram_file_id)
         VALUES ($1, $2, $3, $4, $5)
         """,
         file_id,
         filename,
         content_type,
         size,
-        telegram_file_id,
+        tg_file_id,
     )
-    await conn.close()
 
 
-async def load_metadata(file_id) -> Optional[dict]:
-    conn = await get_db()
-    row = await conn.fetchrow(
-        "SELECT * FROM files WHERE id=$1",
-        file_id,
+async def load_metadata(file_id):
+    return await db.fetchrow(
+        "SELECT * FROM files WHERE file_id=$1", file_id
     )
-    await conn.close()
-    return dict(row) if row else None
 
-# =========================
-# Telegram helpers
-# =========================
 
-async def send_to_telegram(file: UploadFile) -> str:
-    file.file.seek(0)
+# ================= ROUTES =================
 
-    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendDocument"
-
-    async with httpx.AsyncClient(timeout=120) as client:
-        resp = await client.post(
-            url,
-            data={"chat_id": TELEGRAM_LOG_CHANNEL_ID},
-            files={
-                "document": (
-                    file.filename,
-                    await file.read(),
-                    file.content_type or "application/octet-stream",
-                )
-            },
-        )
-
-    if resp.status_code != 200:
-        raise RuntimeError("Failed to upload to Telegram")
-
-    data = resp.json()
-    return data["result"]["document"]["file_id"]
-
-# =========================
-# Routes
-# =========================
-@app.get("/host")
-def host():
-    return FileResponse("static/ab.html")
+@app.get("/host", response_class=HTMLResponse)
+async def host():
+    with open("static/ab.html", "r", encoding="utf-8") as f:
+        return f.read()
 
 
 @app.post("/upload")
-async def upload_file(file: UploadFile = File(...)):
-    contents = await file.read()
-    size = len(contents)
+async def upload(file: UploadFile = File(...)):
+    data = await file.read()
+    size = len(data)
 
     if size > MAX_FILE_SIZE:
-        raise HTTPException(status_code=400, detail="File exceeds 50MB limit")
+        raise HTTPException(400, "File exceeds 50MB")
 
     file_id = uuid.uuid4().hex
 
-    try:
-        telegram_file_id = await send_to_telegram(file)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    tg_id = await send_to_telegram(
+        file.filename, file.content_type, data
+    )
 
-    try:
-        await save_metadata(
-            file_id=file_id,
-            filename=file.filename,
-            content_type=file.content_type or "application/octet-stream",
-            size=size,
-            telegram_file_id=telegram_file_id,
-        )
-    except Exception:
-        raise HTTPException(status_code=500, detail="Database error")
-
-    file_url = f"{APP_BASE_URL}/f/{file_id}" if APP_BASE_URL else f"/f/{file_id}"
+    await save_metadata(
+        file_id,
+        file.filename,
+        file.content_type or "application/octet-stream",
+        size,
+        tg_id,
+    )
 
     return {
         "id": file_id,
-        "url": file_url,
         "filename": file.filename,
         "size": size,
+        "content_type": file.content_type,
+        "url": f"/f/{file_id}",
     }
 
 
 @app.get("/f/{file_id}")
-async def get_file(file_id: str):
+async def download(file_id: str):
     meta = await load_metadata(file_id)
     if not meta:
-        raise HTTPException(status_code=404, detail="File not found")
-
-    tg_url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getFile"
+        raise HTTPException(404, "Not found")
 
     async with httpx.AsyncClient() as client:
         r = await client.get(
-            tg_url,
+            f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getFile",
             params={"file_id": meta["telegram_file_id"]},
         )
 
-    if r.status_code != 200:
-        raise HTTPException(status_code=500, detail="Telegram lookup failed")
-
-    file_path = r.json()["result"]["file_path"]
-    download_url = f"https://api.telegram.org/file/bot{TELEGRAM_BOT_TOKEN}/{file_path}"
-
-    return RedirectResponse(download_url)
+    path = r.json()["result"]["file_path"]
+    return RedirectResponse(
+        f"https://api.telegram.org/file/bot{TELEGRAM_BOT_TOKEN}/{path}"
+    )
 
 
 @app.get("/meta/{file_id}")
-async def metadata(file_id: str):
+async def meta(file_id: str):
     meta = await load_metadata(file_id)
     if not meta:
-        raise HTTPException(status_code=404, detail="Not found")
-    return JSONResponse(meta)
+        raise HTTPException(404, "Not found")
 
-
-# =========================
-# Local run
-# =========================
-
-if __name__ == "__main__":
-    import uvicorn
-
-    uvicorn.run(
-        "main:app",
-        host="0.0.0.0",
-        port=int(os.getenv("PORT", "8000")),
-        reload=True,
-    )
+    return JSONResponse(dict(meta))
