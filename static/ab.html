@@ -1,24 +1,188 @@
 <!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><title>Uploader</title></head>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>File Host</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: #0b1220;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #e5e7eb;
+    }
+
+    .box {
+      width: 100%;
+      max-width: 420px;
+      padding: 20px;
+      background: #020617;
+      border-radius: 14px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+    }
+
+    h1 {
+      margin: 0 0 6px;
+      text-align: center;
+      font-size: 22px;
+    }
+
+    .hint {
+      text-align: center;
+      font-size: 13px;
+      color: #94a3b8;
+      margin-bottom: 16px;
+    }
+
+    input[type="file"] {
+      width: 100%;
+      padding: 12px;
+      border: 1px dashed #334155;
+      border-radius: 10px;
+      background: #020617;
+      color: #e5e7eb;
+    }
+
+    button {
+      width: 100%;
+      margin-top: 14px;
+      padding: 12px;
+      font-size: 15px;
+      border-radius: 10px;
+      border: none;
+      background: #2563eb;
+      color: white;
+    }
+
+    button:disabled {
+      background: #475569;
+    }
+
+    .progress {
+      width: 100%;
+      height: 10px;
+      background: #020617;
+      border-radius: 6px;
+      overflow: hidden;
+      margin-top: 14px;
+      display: none;
+    }
+
+    .bar {
+      height: 100%;
+      width: 0%;
+      background: #22c55e;
+    }
+
+    .status {
+      margin-top: 12px;
+      font-size: 14px;
+      text-align: center;
+      word-break: break-word;
+    }
+
+    .error {
+      color: #ef4444;
+    }
+
+    .success {
+      color: #22c55e;
+    }
+
+    a {
+      color: #38bdf8;
+      text-decoration: none;
+    }
+  </style>
+</head>
+
 <body>
-<input type="file" id="file">
-<button onclick="upload()">Upload</button>
-<div id="status"></div>
+  <div class="box">
+    <h1>Upload file</h1>
+    <div class="hint">Maximum size: 50 MB</div>
+
+    <input type="file" id="file">
+    <button id="btn">Upload</button>
+
+    <div class="progress" id="progress">
+      <div class="bar" id="bar"></div>
+    </div>
+
+    <div class="status" id="status"></div>
+  </div>
+
 <script>
-function upload(){
- const f=document.getElementById('file').files[0];
- const xhr=new XMLHttpRequest();
- const fd=new FormData();
- fd.append("file",f);
- xhr.upload.onprogress=e=>{
-  if(e.lengthComputable)
-   document.getElementById("status").innerText=Math.round(e.loaded/e.total*100)+"%";
- };
- xhr.onload=()=>document.getElementById("status").innerText=xhr.responseText;
- xhr.open("POST","/upload");
- xhr.send(fd);
-}
+const MAX = 50 * 1024 * 1024;
+
+const fileInput = document.getElementById("file");
+const btn = document.getElementById("btn");
+const status = document.getElementById("status");
+const progress = document.getElementById("progress");
+const bar = document.getElementById("bar");
+
+btn.onclick = () => {
+  const file = fileInput.files[0];
+  status.textContent = "";
+  status.className = "status";
+
+  if (!file) {
+    status.textContent = "Choose a file first";
+    status.classList.add("error");
+    return;
+  }
+
+  if (file.size > MAX) {
+    status.textContent = "File exceeds 50 MB";
+    status.classList.add("error");
+    return;
+  }
+
+  btn.disabled = true;
+  progress.style.display = "block";
+  bar.style.width = "0%";
+
+  const xhr = new XMLHttpRequest();
+  const data = new FormData();
+  data.append("file", file);
+
+  xhr.upload.onprogress = e => {
+    if (e.lengthComputable) {
+      bar.style.width = Math.round(e.loaded / e.total * 100) + "%";
+    }
+  };
+
+  xhr.onload = () => {
+    btn.disabled = false;
+
+    if (xhr.status !== 200) {
+      status.textContent = "Upload failed";
+      status.classList.add("error");
+      return;
+    }
+
+    const res = JSON.parse(xhr.responseText);
+    status.innerHTML = `Link:<br><a href="${res.url}" target="_blank">${res.url}</a>`;
+    status.classList.add("success");
+  };
+
+  xhr.onerror = () => {
+    btn.disabled = false;
+    status.textContent = "Network error";
+    status.classList.add("error");
+  };
+
+  xhr.open("POST", "/upload");
+  xhr.send(data);
+};
 </script>
 </body>
 </html>
