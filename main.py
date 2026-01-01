@@ -111,17 +111,9 @@ async def send_to_telegram(file: UploadFile) -> str:
 # =========================
 # Routes
 # =========================
-
-@app.get("/host", response_class=HTMLResponse)
-def index():
-    return """
-    <html>
-      <head><title>File Host</title></head>
-      <body>
-        <a href="/static/ab.html">Open uploader</a>
-      </body>
-    </html>
-    """
+@app.get("/host")
+def host():
+    return FileResponse("static/ab.html")
 
 
 @app.post("/upload")
