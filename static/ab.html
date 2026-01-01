@@ -688,7 +688,7 @@
                 <div class="upload-icon">📤</div>
                 <div class="upload-text">
                     <h2 class="upload-title">Drop your files here</h2>
-                    <p class="upload-subtitle">or click to browse (max 80MB)</p>
+                    <p class="upload-subtitle">or click to browse (max 50MB)</p>
                 </div>
                 <button class="upload-button">Choose Files</button>
                 <input type="file" id="fileInput" class="file-input" multiple>
@@ -828,7 +828,7 @@
                 }, 100);
                 
                 // Upload file
-                const response = await fetch('https://image-backend-kust11-aa3f313d8bed.herokuapp.com/upload', {
+                const response = await fetch('https://harsh-kamillah-royality-ecca704b.koyeb.app/upload', {
                     method: 'POST',
                     body: formData
                 });
