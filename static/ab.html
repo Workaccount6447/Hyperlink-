@@ -913,7 +913,7 @@
             const detailsBtn = fileCard.querySelector('[data-action="details"]');
             
             downloadBtn.addEventListener('click', () => {
-                window.open('https://harsh-kamillah-royality-ecca704b.koyeb.app' + fileData.url, '_blank');
+                window.open('/f/' + fileData.id, '_blank');
             });
             
             copyBtn.addEventListener('click', () => {
@@ -1002,7 +1002,7 @@
                 const metadata = await response.json();
                 
                 // Set the permanent link
-                const permanentLink = window.location.origin + '/f/' + fileId;
+                const permanentLink = '/f/' + fileData.id;
                 copyLinkInput.value = permanentLink;
                 
                 // Format metadata for display
