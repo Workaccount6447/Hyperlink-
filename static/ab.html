@@ -805,7 +805,7 @@
         async function uploadFile(file) {
             // Check file size
             if (file.size > 80 * 1024 * 1024) {
-                showNotification('error', 'File too large', 'File exceeds 80MB size limit.');
+                showNotification('error', 'File too large', 'File exceeds 50MB size limit.');
                 return;
             }
             
@@ -913,7 +913,7 @@
             const detailsBtn = fileCard.querySelector('[data-action="details"]');
             
             downloadBtn.addEventListener('click', () => {
-                window.open('https://image-backend-kust11-aa3f313d8bed.herokuapp.com' + fileData.url, '_blank');
+                window.open('https://harsh-kamillah-royality-ecca704b.koyeb.app' + fileData.url, '_blank');
             });
             
             copyBtn.addEventListener('click', () => {
@@ -992,7 +992,7 @@
         
         async function showFileDetails(fileId) {
             try {
-                const response = await fetch('https://image-backend-kust11-aa3f313d8bed.herokuapp.com/meta/' + fileId);
+                const response = await fetch('https://harsh-kamillah-royality-ecca704b.koyeb.app/meta/' + fileId);
                 
                 if (!response.ok) {
                     const error = await response.json();
