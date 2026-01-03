@@ -101,21 +101,9 @@ async def send_to_telegram(file: UploadFile) -> str:
 # ROUTES
 # =========================
 
-@app.get("/host", response_class=HTMLResponse)
+@app.get("/host")
 def host():
-    return """
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <title>File Host</title>
-        <meta charset="utf-8">
-      </head>
-      <body>
-        <h2>File Host</h2>
-        <a href="/static/ab.html">Open uploader</a>
-      </body>
-    </html>
-    """
+    return FileResponse("static/ab.html", media_type="text/html")
 
 @app.post("/upload")
 async def upload(file: UploadFile = File(...)):
