@@ -1,3 +1,9 @@
+#Jai Shree Ganesha 
+#Jai Shree Krishna 
+#Jai Shree Ram 
+
+#This repo was made by - @RoyalityBots of telegram .
+
 import os
 import uuid
 import httpx
@@ -20,6 +26,7 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 
 # =========================
 # CONFIG
+#This repo was made by - @RoyalityBots of telegram .
 # =========================
 
 MAX_FILE_SIZE = 50 * 1024 * 1024  # 50 MB
@@ -38,7 +45,7 @@ if not DATABASE_URL:
 # =========================
 # DATABASE
 # =========================
-
+#This repo was made by - @RoyalityBots of telegram .
 Base = declarative_base()
 engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 SessionLocal = sessionmaker(bind=engine)
@@ -58,6 +65,7 @@ Base.metadata.create_all(bind=engine)
 # =========================
 # APP
 # =========================
+#This repo was made by - @RoyalityBots of telegram .
 
 app = FastAPI(title="File Host")
 
@@ -101,6 +109,7 @@ async def send_to_telegram(file: UploadFile) -> str:
 # =========================
 # ROUTES
 # =========================
+#This repo was made by - @RoyalityBots of telegram .
 
 @app.get("/host")
 def host():
@@ -190,3 +199,4 @@ async def meta(file_id: str):
         "telegram_file_id": meta.telegram_file_id,
         "created_at": meta.created_at.isoformat(),
     })
+#This repo was made by - @RoyalityBots of telegram . This is not for sale . 
