@@ -682,7 +682,7 @@
                 <div class="logo-icon">⚡</div>
                 <span>Royality Host</span>
             </div>
-            <p class="tagline">Royal Premium File Hosting with Unlimited Possibilities and Unlimited Links.</p>
+            <p class="tagline">Royal Premium File Hosting with Unlimited Possibilities and Unlimited Links with unlimited time.</p>
         </header>
 
         <div class="upload-section">
@@ -690,7 +690,7 @@
                 <div class="upload-icon">📤</div>
                 <div class="upload-text">
                     <h2 class="upload-title">Drop your files here or Select the file </h2>
-                    <p class="upload-subtitle">or click to browse (max 50MB)</p>
+                    <p class="upload-subtitle">Click to browse (max 50MB)</p>
                 </div>
                 <button class="upload-button">Choose Files</button>
                 <input type="file" id="fileInput" class="file-input" multiple>
@@ -834,7 +834,7 @@
                 }, 100);
                 
                 // Upload file
-                const response = await fetch('https://harsh-kamillah-royality-ecca704b.koyeb.app/upload', {
+                const response = await fetch('https://royalitybots.koyeb.app/upload', {
                     method: 'POST',
                     body: formData
                 });
@@ -998,7 +998,7 @@
         
         async function showFileDetails(fileId) {
             try {
-                const response = await fetch('https://harsh-kamillah-royality-ecca704b.koyeb.app/meta/' + fileId);
+                const response = await fetch('https://royalitybots.koyeb.app/meta/' + fileId);
                 
                 if (!response.ok) {
                     const error = await response.json();
