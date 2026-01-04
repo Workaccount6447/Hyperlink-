@@ -115,6 +115,10 @@ async def send_to_telegram(file: UploadFile) -> str:
 def host():
     return FileResponse("static/ab.html", media_type="text/html")
 
+@app.get("/pw")
+def preview_only():
+    return FileResponse("static/pw.html", media_type="text/html")
+    
 @app.post("/upload")
 async def upload(file: UploadFile = File(...)):
     content = await file.read()
