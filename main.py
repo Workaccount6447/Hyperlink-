@@ -118,6 +118,10 @@ def host():
 @app.get("/pw")
 def preview_only():
     return FileResponse("static/pw.html", media_type="text/html")
+
+@app.get("/pw/{file_id}")
+def preview_file(file_id: str):
+    return FileResponse(f"uploads/{file_id}")
     
 @app.post("/upload")
 async def upload(file: UploadFile = File(...)):
