@@ -164,6 +164,18 @@ async def upload(file: UploadFile = File(...)):
         "content_type": file.content_type,
     }
 
+@app.get("/pw/{file_id}")
+def preview_page(file_id: str):
+    return templates.TemplateResponse(
+        "pw.html",
+        {
+            "request": request,
+            "file_id": file_id,
+            "preview_only": True
+        }
+    )
+    
+
 @app.get("/f/{file_id}")
 async def get_file(file_id: str):
     db = SessionLocal()
