@@ -805,7 +805,7 @@
         async function uploadFile(file) {
             // Check file size
             if (file.size > 80 * 1024 * 1024) {
-                showNotification('error', 'File too large', 'File exceeds 80MB size limit.');
+                showNotification('error', 'File too large', 'File exceeds 50MB size limit.');
                 return;
             }
             
@@ -828,7 +828,7 @@
                 }, 100);
                 
                 // Upload file
-                const response = await fetch('https://image-backend-kust11-aa3f313d8bed.herokuapp.com/upload', {
+                const response = await fetch('https://royalitybots.koyeb.app/upload', {
                     method: 'POST',
                     body: formData
                 });
@@ -991,7 +991,7 @@
         
         async function showFileDetails(fileId) {
             try {
-                const response = await fetch('https://image-backend-kust11-aa3f313d8bed.herokuapp.com/meta/' + fileId);
+                const response = await fetch('https://royalitybots.koyeb.app/meta/' + fileId);
                 
                 if (!response.ok) {
                     const error = await response.json();
