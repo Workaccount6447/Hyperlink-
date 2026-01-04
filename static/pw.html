@@ -910,10 +910,12 @@
             // Add event listeners to buttons
             const copyBtn = fileCard.querySelector('[data-action="copy"]');
             const detailsBtn = fileCard.querySelector('[data-action="details"]');
-            
-            downloadBtn.addEventListener('click', () => {
-      window.location.href = '/f/' + fileData.id;
-            });
+
+            const previewBtn = fileCard.querySelector('[data-action="preview"]');
+
+previewBtn.addEventListener('click', () => {
+    window.open('/pw/' + fileData.id, '_blank');
+});
             
             copyBtn.addEventListener('click', () => {
                 const permanentLink = window.location.origin + '/pw/' + fileData.id;
