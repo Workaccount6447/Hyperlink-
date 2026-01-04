@@ -902,22 +902,21 @@
                     '</div>' +
                 '</div>' +
                 '<div class="file-actions">' +
-                    '<button class="btn btn-primary" data-id="' + fileData.id + '" data-action="download"><span class="btn-icon">⬇</span> Download</button>' +
+                    '<button class="btn btn-primary" data-id="' + fileData.id + '" data-action="preview"><span class="btn-icon">👁</span> Preview</button>' +
                     '<button class="btn btn-success" data-id="' + fileData.id + '" data-action="copy"><span class="btn-icon">🔗</span> Copy Link</button>' +
                     '<button class="btn btn-secondary" data-id="' + fileData.id + '" data-action="details"><span class="btn-icon">ℹ</span> Details</button>' +
                 '</div>';
             
             // Add event listeners to buttons
-            const downloadBtn = fileCard.querySelector('[data-action="download"]');
             const copyBtn = fileCard.querySelector('[data-action="copy"]');
             const detailsBtn = fileCard.querySelector('[data-action="details"]');
             
             downloadBtn.addEventListener('click', () => {
-                window.open('https://image-backend-kust11-aa3f313d8bed.herokuapp.com' + fileData.url, '_blank');
+      window.location.href = '/f/' + fileData.id;
             });
             
             copyBtn.addEventListener('click', () => {
-                const permanentLink = window.location.origin + '/f/' + fileData.id;
+                const permanentLink = window.location.origin + '/pw/' + fileData.id;
                 copyToClipboard(permanentLink);
             });
             
@@ -1002,7 +1001,7 @@
                 const metadata = await response.json();
                 
                 // Set the permanent link
-                const permanentLink = window.location.origin + '/f/' + fileId;
+                const permanentLink = window.location.origin + '/pw/' + fileId;
                 copyLinkInput.value = permanentLink;
                 
                 // Format metadata for display
