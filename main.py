@@ -9,7 +9,6 @@ import uuid
 import httpx
 from datetime import datetime
 
-from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -23,6 +22,11 @@ from sqlalchemy import (
     DateTime,
 )
 from sqlalchemy.orm import sessionmaker, declarative_base
+
+from fastapi import FastAPI, UploadFile, File, HTTPException, Request
+from fastapi.responses import FileResponse, RedirectResponse, JSONResponse
+from fastapi.templating import Jinja2Templates
+
 
 # =========================
 # CONFIG
@@ -115,14 +119,25 @@ async def send_to_telegram(file: UploadFile) -> str:
 def host():
     return FileResponse("static/ab.html", media_type="text/html")
 
+
 @app.get("/pw")
 def preview_only():
     return FileResponse("static/pw.html", media_type="text/html")
 
+
+# ✅ PREVIEW PAGE — HTML ONLY (NO FILE ACCESS)
 @app.get("/pw/{file_id}")
-def preview_file(file_id: str):
-    return FileResponse(f"uploads/{file_id}")
-    
+def preview_page(request: Request, file_id: str):
+    return templates.TemplateResponse(
+        "pw.html",
+        {
+            "request": request,
+            "file_id": file_id,
+            "preview_only": True
+        }
+    )
+
+
 @app.post("/upload")
 async def upload(file: UploadFile = File(...)):
     content = await file.read()
@@ -164,17 +179,6 @@ async def upload(file: UploadFile = File(...)):
         "content_type": file.content_type,
     }
 
-@app.get("/pw/{file_id}")
-def preview_page(file_id: str):
-    return templates.TemplateResponse(
-        "pw.html",
-        {
-            "request": request,
-            "file_id": file_id,
-            "preview_only": True
-        }
-    )
-    
 
 @app.get("/f/{file_id}")
 async def get_file(file_id: str):
@@ -200,6 +204,7 @@ async def get_file(file_id: str):
 
     return RedirectResponse(download_url)
 
+
 @app.get("/meta/{file_id}")
 async def meta(file_id: str):
     db = SessionLocal()
@@ -219,4 +224,3 @@ async def meta(file_id: str):
         "telegram_file_id": meta.telegram_file_id,
         "created_at": meta.created_at.isoformat(),
     })
-#This repo was made by - @RoyalityBots of telegram . This is not for sale . 
