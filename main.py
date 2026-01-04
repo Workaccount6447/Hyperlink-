@@ -46,6 +46,10 @@ if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
 if not DATABASE_URL:
     raise RuntimeError("Missing DATABASE_URL")
 
+app = FastAPI()
+
+templates = Jinja2Templates(directory="templates")
+
 # =========================
 # DATABASE
 # =========================
