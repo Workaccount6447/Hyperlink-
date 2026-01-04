@@ -46,10 +46,6 @@ if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
 if not DATABASE_URL:
     raise RuntimeError("Missing DATABASE_URL")
 
-app = FastAPI()
-
-templates = Jinja2Templates(directory="static")
-
 # =========================
 # DATABASE
 # =========================
@@ -131,15 +127,8 @@ def preview_only():
 
 # ✅ PREVIEW PAGE — HTML ONLY (NO FILE ACCESS)
 @app.get("/pw/{file_id}")
-def preview_page(request: Request, file_id: str):
-    return templates.TemplateResponse(
-        "pw.html",
-        {
-            "request": request,
-            "file_id": file_id,
-            "preview_only": True
-        }
-    )
+def preview_page():
+    return FileResponse("static/pw.html", media_type="text/html")
 
 
 @app.post("/upload")
