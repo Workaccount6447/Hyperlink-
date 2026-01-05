@@ -127,9 +127,37 @@ def preview_only():
 
 # ✅ PREVIEW PAGE — HTML ONLY (NO FILE ACCESS)
 @app.get("/pw/{file_id}")
-def preview_page():
-    return FileResponse("static/pw.html", media_type="text/html")
+async def preview_page(request: Request, file_id: str):
+    db = SessionLocal()
+    try:
+        meta = db.query(FileMeta).filter_by(file_id=file_id).first()
+    finally:
+        db.close()
 
+    if not meta:
+        raise HTTPException(404, "File not found")
+
+    # allowed image types
+    allowed_types = ["image/jpeg", "image/png"]
+
+    if meta.content_type not in allowed_types:
+        return templates.TemplateResponse(
+            "pw.html",
+            {
+                "request": request,
+                "error": "Invalid format. Only JPG and PNG are allowed.",
+                "file_id": None
+            }
+        )
+
+    return templates.TemplateResponse(
+        "pw.html",
+        {
+            "request": request,
+            "file_id": file_id,
+            "download_url": f"/f/{file_id}"
+        }
+    )
 
 @app.post("/upload")
 async def upload(file: UploadFile = File(...)):
