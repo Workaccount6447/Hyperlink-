@@ -677,6 +677,16 @@
     </style>
 </head>
 <body>
+
+    <img id="preview" />
+
+<script>
+  const parts = window.location.pathname.split("/");
+  if (parts.length === 3) {
+    document.getElementById("preview").src = "/f/" + parts[2];
+  }
+</script>
+    
     <div class="bg-shapes">
         <div class="shape shape-1"></div>
         <div class="shape shape-2"></div>
