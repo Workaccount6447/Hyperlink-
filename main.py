@@ -25,7 +25,6 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 
 from fastapi import FastAPI, UploadFile, File, HTTPException, Request
 from fastapi.responses import FileResponse, RedirectResponse, JSONResponse
-from fastapi.templating import Jinja2Templates
 
 
 # =========================
@@ -72,8 +71,6 @@ Base.metadata.create_all(bind=engine)
 #This repo was made by - @RoyalityBots of telegram .
 
 app = FastAPI(title="File Host")
-
-templates = Jinja2Templates(directory="static")
 
 app.add_middleware(
     CORSMiddleware,
@@ -123,13 +120,13 @@ def host():
 
 
 @app.get("/pw")
-def preview_only():
+def preview_home():
     return FileResponse("static/pw.html", media_type="text/html")
 
 
-# ✅ PREVIEW PAGE — HTML ONLY (NO FILE ACCESS)
 @app.get("/pw/{file_id}")
-async def preview_page(request: Request, file_id: str):
+def preview_file(file_id: str):
+    # Only JPG & PNG allowed
     db = SessionLocal()
     try:
         meta = db.query(FileMeta).filter_by(file_id=file_id).first()
@@ -139,27 +136,11 @@ async def preview_page(request: Request, file_id: str):
     if not meta:
         raise HTTPException(404, "File not found")
 
-    # allowed image types
-    allowed_types = ["image/jpeg", "image/png"]
+    if meta.content_type not in ("image/jpeg", "image/png"):
+        raise HTTPException(400, "Invalid format. Only JPG and PNG allowed")
 
-    if meta.content_type not in allowed_types:
-        return templates.TemplateResponse(
-            "pw.html",
-            {
-                "request": request,
-                "error": "Invalid format. Only JPG and PNG are allowed.",
-                "file_id": None
-            }
-        )
-
-    return templates.TemplateResponse(
-        "pw.html",
-        {
-            "request": request,
-            "file_id": file_id,
-            "download_url": f"/f/{file_id}"
-        }
-    )
+    # Frontend will fetch image via /f/{file_id}
+    return FileResponse("static/pw.html", media_type="text/html")
 
 @app.post("/upload")
 async def upload(file: UploadFile = File(...)):
