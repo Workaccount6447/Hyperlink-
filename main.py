@@ -73,6 +73,8 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="File Host")
 
+templates = Jinja2Templates(directory="static")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
