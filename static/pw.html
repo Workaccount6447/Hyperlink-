@@ -655,6 +655,15 @@
             .upload-subtitle {
                 font-size: 0.9rem;
             }
+
+            {% if error %}
+  <h3 style="color:red; text-align:center;">
+    {{ error }}
+  </h3>
+{% elif file_id %}
+  <img src="{{ download_url }}" style="max-width:100%;" />
+{% endif %}
+    
             
             .file-card {
                 padding: 1rem;
