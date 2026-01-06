@@ -114,6 +114,15 @@ async def send_to_telegram(file: UploadFile) -> str:
 # =========================
 #This repo was made by - @RoyalityBots of telegram .
 
+from fastapi import UploadFile, File, HTTPException
+from fastapi.responses import FileResponse, RedirectResponse, JSONResponse
+import uuid
+import httpx
+
+# =========================
+# HOST PAGES
+# =========================
+
 @app.get("/host")
 def host():
     return FileResponse("static/ab.html", media_type="text/html")
@@ -124,9 +133,12 @@ def preview_home():
     return FileResponse("static/pw.html", media_type="text/html")
 
 
+# =========================
+# PREVIEW PAGE (IMAGE + VIDEO)
+# =========================
+
 @app.get("/pw/{file_id}")
 def preview_file(file_id: str):
-    # Only JPG & PNG allowed
     db = SessionLocal()
     try:
         meta = db.query(FileMeta).filter_by(file_id=file_id).first()
@@ -136,11 +148,28 @@ def preview_file(file_id: str):
     if not meta:
         raise HTTPException(404, "File not found")
 
-    if meta.content_type not in ("image/jpeg", "image/png"):
-        raise HTTPException(400, "Invalid format. Only JPG and PNG allowed")
+    allowed_types = (
+        "image/jpeg",
+        "image/png",
+        "video/mp4",
+        "video/webm",
+        "video/ogg",
+        "video/quicktime",
+    )
 
-    # Frontend will fetch image via /f/{file_id}
+    if meta.content_type not in allowed_types:
+        raise HTTPException(
+            400,
+            "Invalid format. Only JPG, PNG and video files are allowed"
+        )
+
+    # Frontend loads media via /f/{file_id}
     return FileResponse("static/pw.html", media_type="text/html")
+
+
+# =========================
+# UPLOAD
+# =========================
 
 @app.post("/upload")
 async def upload(file: UploadFile = File(...)):
@@ -169,20 +198,18 @@ async def upload(file: UploadFile = File(...)):
     finally:
         db.close()
 
-    file_url = (
-        f"{APP_BASE_URL}/f/{file_id}"
-        if APP_BASE_URL
-        else f"/f/{file_id}"
-    )
-
     return {
         "id": file_id,
-        "url": file_url,
+        "url": f"/pw/{file_id}",
         "filename": file.filename,
         "size": size,
         "content_type": file.content_type,
     }
 
+
+# =========================
+# FILE REDIRECT (TELEGRAM)
+# =========================
 
 @app.get("/f/{file_id}")
 async def get_file(file_id: str):
@@ -208,6 +235,10 @@ async def get_file(file_id: str):
 
     return RedirectResponse(download_url)
 
+
+# =========================
+# METADATA
+# =========================
 
 @app.get("/meta/{file_id}")
 async def meta(file_id: str):
