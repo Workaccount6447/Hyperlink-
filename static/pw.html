@@ -678,6 +678,33 @@
 </head>
 <body>
 
+    <div style="text-align:center; margin-top:30px;">
+  <img id="preview" style="display:none; max-width:90%; border-radius:12px;">
+  <video id="video" controls style="display:none; max-width:90%; border-radius:12px;"></video>
+</div>
+
+<script>
+  const id = location.pathname.split("/").pop();
+
+  fetch("/meta/" + id)
+    .then(r => r.json())
+    .then(meta => {
+      if (meta.content_type.startsWith("image/")) {
+        const img = document.getElementById("preview");
+        img.src = "/f/" + id;
+        img.style.display = "block";
+      } 
+      else if (meta.content_type.startsWith("video/")) {
+        const video = document.getElementById("video");
+        video.src = "/f/" + id;
+        video.style.display = "block";
+      }
+    })
+    .catch(() => {
+      document.body.innerHTML += "<h3 style='color:red;text-align:center'>Preview failed</h3>";
+    });
+</script>
+    
     <img id="preview" />
 
 <script>
