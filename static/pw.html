@@ -1049,7 +1049,7 @@ previewBtn.addEventListener('click', () => {
                 const metadata = await response.json();
                 
                 // Set the permanent link
-                const permanentLink = window.location.origin + '/pw/' + fileId;
+                const permanentLink = window.location.origin + '/pre/' + fileId;
                 copyLinkInput.value = permanentLink;
                 
                 // Format metadata for display
