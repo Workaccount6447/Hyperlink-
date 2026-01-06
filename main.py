@@ -182,6 +182,37 @@ async def upload(file: UploadFile = File(...)):
 # FILE REDIRECT (TELEGRAM)
 # =========================
 
+@app.get("/pw/{file_id}")
+def preview_file(file_id: str):
+    db = SessionLocal()
+    try:
+        meta = db.query(FileMeta).filter_by(file_id=file_id).first()
+    finally:
+        db.close()
+
+    if not meta:
+        raise HTTPException(404, "File not found")
+
+    allowed_types = (
+        "image/jpeg",
+        "image/png",
+        "video/mp4",
+        "video/webm",
+        "video/ogg",
+        "video/quicktime",
+    )
+
+    if meta.content_type not in allowed_types:
+        raise HTTPException(
+            400,
+            "Invalid format. Only JPG, PNG and video files are allowed"
+        )
+
+    # Frontend loads media via /f/{file_id}
+    return FileResponse("static/pw.html", media_type="text/html")
+
+
+
 @app.get("/f/{file_id}")
 async def get_file(file_id: str):
     db = SessionLocal()
