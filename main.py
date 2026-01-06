@@ -137,35 +137,6 @@ def preview_home():
 # PREVIEW PAGE (IMAGE + VIDEO)
 # =========================
 
-@app.get("/pw/{file_id}")
-def preview_file(file_id: str):
-    db = SessionLocal()
-    try:
-        meta = db.query(FileMeta).filter_by(file_id=file_id).first()
-    finally:
-        db.close()
-
-    if not meta:
-        raise HTTPException(404, "File not found")
-
-    allowed_types = (
-        "image/jpeg",
-        "image/png",
-        "video/mp4",
-        "video/webm",
-        "video/ogg",
-        "video/quicktime",
-    )
-
-    if meta.content_type not in allowed_types:
-        raise HTTPException(
-            400,
-            "Invalid format. Only JPG, PNG and video files are allowed"
-        )
-
-    # Frontend loads media via /f/{file_id}
-    return FileResponse("static/pw.html", media_type="text/html")
-
 
 # =========================
 # UPLOAD
@@ -259,3 +230,80 @@ async def meta(file_id: str):
         "telegram_file_id": meta.telegram_file_id,
         "created_at": meta.created_at.isoformat(),
     })
+
+from fastapi.responses import HTMLResponse
+
+@app.get("/pre/{file_id}", response_class=HTMLResponse)
+async def preview_file(file_id: str):
+    db = SessionLocal()
+    try:
+        meta = db.query(FileMeta).filter_by(file_id=file_id).first()
+    finally:
+        db.close()
+
+    if not meta:
+        raise HTTPException(404, "File not found")
+
+    ctype = meta.content_type or ""
+
+    # IMAGE PREVIEW
+    if ctype.startswith("image/"):
+        return f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <title>Preview</title>
+            <style>
+                body {{
+                    margin: 0;
+                    background: #000;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    height: 100vh;
+                }}
+                img {{
+                    max-width: 100%;
+                    max-height: 100%;
+                }}
+            </style>
+        </head>
+        <body>
+            <img src="/f/{file_id}">
+        </body>
+        </html>
+        """
+
+    # VIDEO PREVIEW
+    if ctype.startswith("video/"):
+        return f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <title>Preview</title>
+            <style>
+                body {{
+                    margin: 0;
+                    background: #000;
+                }}
+                video {{
+                    width: 100%;
+                    height: 100vh;
+                }}
+            </style>
+        </head>
+        <body>
+            <video controls autoplay>
+                <source src="/f/{file_id}" type="{ctype}">
+            </video>
+        </body>
+        </html>
+        """
+
+    # OTHER FILE TYPES
+    raise HTTPException(
+        400,
+        "Preview not supported for this file type"
+    )
