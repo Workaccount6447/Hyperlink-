@@ -684,9 +684,23 @@
 </div>
 
 <script>
-  const id = location.pathname.split("/").pop();
+  const parts = location.pathname.split("/");
+
+if (parts.length === 3 && parts[1] === "pre") {
+  const id = parts[2];
 
   fetch("/meta/" + id)
+    .then(r => r.json())
+    .then(meta => {
+      if (meta.content_type.startsWith("image/")) {
+        document.getElementById("preview").src = "/f/" + id;
+        document.getElementById("preview").style.display = "block";
+      } else if (meta.content_type.startsWith("video/")) {
+        document.getElementById("video").src = "/f/" + id;
+        document.getElementById("video").style.display = "block";
+      }
+    });
+}
     .then(r => r.json())
     .then(meta => {
       if (meta.content_type.startsWith("image/")) {
